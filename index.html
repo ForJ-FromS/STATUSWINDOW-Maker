@@ -1,0 +1,1742 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>상태창 HTML 출력기</title>
+  <style>
+    :root {
+      --bg: #f6f3ee;
+      --ink: #24232a;
+      --muted: #6f6975;
+      --panel: #fffdfa;
+      --line: #ded8d0;
+      --accent: #6a7fdb;
+      --accent-2: #ff8fab;
+      --soft: rgba(255, 255, 255, 0.72);
+      --shadow: 0 18px 42px rgba(47, 40, 32, 0.13);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        linear-gradient(120deg, rgba(255, 143, 171, 0.13), transparent 34%),
+        linear-gradient(230deg, rgba(106, 127, 219, 0.14), transparent 38%),
+        var(--bg);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      padding: 0 10px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(300px, 360px) minmax(520px, 1.15fr) minmax(320px, 430px);
+      gap: 14px;
+      min-height: 100vh;
+      padding: 14px;
+    }
+
+    .panel,
+    .preview-shell,
+    .output-shell {
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid rgba(222, 216, 208, 0.95);
+      border-radius: 12px;
+      background: rgba(255, 253, 250, 0.9);
+      box-shadow: var(--shadow);
+    }
+
+    .panel,
+    .output-shell {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.48);
+    }
+
+    h1,
+    h2 {
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    h1 { font-size: 18px; }
+    h2 { font-size: 14px; }
+
+    .hint {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .controls {
+      overflow: auto;
+      padding: 12px;
+    }
+
+    .group {
+      margin-bottom: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.54);
+    }
+
+    .group-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .notice-box {
+      margin: 12px;
+      padding: 12px;
+      border: 1px solid rgba(106, 127, 219, 0.22);
+      border-radius: 10px;
+      background: rgba(106, 127, 219, 0.08);
+      color: #4f4a58;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .notice-box strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #343043;
+      font-size: 13px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-top: 9px;
+    }
+
+    label,
+    .toggle span {
+      color: #3c3740;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      padding: 8px 9px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 72px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(106, 127, 219, 0.12);
+    }
+
+    input[type="color"] {
+      min-height: 36px;
+      padding: 2px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 38px;
+      margin-top: 9px;
+      padding: 8px 9px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
+    .color-row {
+      display: grid;
+      grid-template-columns: 1fr 44px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .item-list {
+      display: grid;
+      gap: 7px;
+    }
+
+    .item-add {
+      display: grid;
+      grid-template-columns: 64px 1fr auto;
+      gap: 7px;
+      margin-bottom: 10px;
+      align-items: end;
+    }
+
+    .item {
+      display: grid;
+      grid-template-columns: 54px 64px 1fr auto auto auto;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 6px 7px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .item input {
+      width: 16px;
+      height: 16px;
+      min-height: 16px;
+      accent-color: var(--accent);
+    }
+
+    .item .emoji-input {
+      width: 54px;
+      min-height: 28px;
+      padding: 3px 6px;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    .item select {
+      min-height: 28px;
+      padding: 3px 6px;
+      border-radius: 7px;
+      font-size: 12px;
+    }
+
+    .item-name {
+      min-width: 0;
+      font-size: 12px;
+      font-weight: 750;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mini {
+      width: 32px;
+      min-height: 28px;
+      padding: 0;
+      border-radius: 7px;
+    }
+
+    .preview-shell {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      position: sticky;
+      top: 14px;
+      align-self: start;
+      height: calc(100vh - 28px);
+    }
+
+    .preview-stage {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      min-height: 0;
+      overflow: auto;
+      padding: 28px;
+      background:
+        linear-gradient(90deg, rgba(36, 35, 42, 0.05) 1px, transparent 1px),
+        linear-gradient(rgba(36, 35, 42, 0.05) 1px, transparent 1px);
+      background-size: 22px 22px;
+    }
+
+    #preview {
+      width: max-content;
+      max-width: none;
+      margin: 0 auto;
+    }
+
+    .output-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 10px 10px 0;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    .count-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.48);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .count-line.over {
+      color: #c73545;
+      background: rgba(255, 107, 107, 0.08);
+    }
+
+    .tab {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      border-bottom-color: transparent;
+    }
+
+    .tab.active {
+      background: #24232a;
+      color: #fff;
+      border-color: #24232a;
+    }
+
+    .code-box {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      border: 0;
+      border-radius: 0;
+      padding: 14px;
+      resize: none;
+      color: #f8f1e8;
+      background: #24211f;
+      line-height: 1.55;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .status-card {
+      width: var(--w);
+      max-width: calc(100vw - 36px);
+      margin: 0 auto;
+      padding: var(--pad-y) var(--pad-x);
+      color: var(--text);
+      background: var(--card-bg);
+      border: var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--card-shadow);
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      font-size: var(--font-size);
+      line-height: 1.48;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .status-card[data-theme="fearless"] {
+      background-image:
+        linear-gradient(rgba(0, 242, 255, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 242, 255, 0.045) 1px, transparent 1px),
+        radial-gradient(circle at center, #001115 0%, #050505 76%);
+      background-size: 22px 22px, 22px 22px, 100% 100%;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .status-card[data-theme="fearless"]::before {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      border: 1px solid rgba(0, 242, 255, 0.22);
+      pointer-events: none;
+    }
+
+    .status-card[data-theme="fearless"] .title-main {
+      color: #fff;
+      text-shadow: 0 0 10px rgba(0, 242, 255, 0.88);
+      font-weight: 900;
+    }
+
+    .status-card[data-theme="fearless"] .status-line,
+    .status-card[data-theme="fearless"] .notice {
+      border-left: 2px solid rgba(0, 242, 255, 0.58);
+      padding-left: 9px;
+      background: rgba(0, 242, 255, 0.035);
+    }
+
+    .status-card[data-theme="diary"] {
+      background-image:
+        repeating-linear-gradient(0deg, transparent 0 25px, rgba(120, 115, 130, 0.12) 26px),
+        var(--card-bg);
+      background-blend-mode: multiply;
+    }
+
+    .status-card[data-theme="phone"] {
+      border: 8px solid rgba(36, 48, 64, 0.12);
+      outline: 1px solid rgba(255, 255, 255, 0.75);
+      outline-offset: -12px;
+    }
+
+    .status-card[data-theme="phone"]::before {
+      content: "";
+      display: block;
+      width: 52px;
+      height: 5px;
+      margin: -4px auto 12px;
+      border-radius: 999px;
+      background: rgba(36, 48, 64, 0.22);
+    }
+
+    .status-card[data-theme="letter"] {
+      background-image:
+        linear-gradient(0deg, rgba(255,255,255,.62), rgba(255,255,255,.62)),
+        var(--card-bg);
+      border: 1px solid rgba(173, 143, 112, 0.24);
+      box-shadow: 0 10px 22px rgba(96, 73, 48, 0.13);
+    }
+
+    .status-card[data-theme="letter"]::before {
+      content: "Dear My Lover";
+      display: block;
+      margin: -2px 0 13px;
+      color: rgba(107, 82, 64, 0.62);
+      font: 700 12px "SFMono-Regular", Consolas, monospace;
+      text-align: left;
+    }
+
+    .status-card[data-theme="letter"] .status-line {
+      padding: 7px 0;
+      border-bottom: 1px dashed rgba(153, 124, 94, 0.2);
+    }
+
+    .status-card[data-theme="chatlog"] {
+      background-image:
+        radial-gradient(circle at 15% 0%, rgba(124, 199, 255, 0.13), transparent 34%),
+        linear-gradient(135deg, #111827, #1f2937);
+    }
+
+    .status-card[data-theme="chatlog"] .meta,
+    .status-card[data-theme="chatlog"] .title {
+      text-align: left;
+    }
+
+    .status-card[data-theme="chatlog"] .status-line {
+      width: fit-content;
+      max-width: 92%;
+      margin-bottom: calc(var(--gap) + 2px);
+      padding: 8px 11px;
+      border-radius: 14px 14px 14px 4px;
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+      overflow-wrap: anywhere;
+    }
+
+    .status-card[data-theme="chatlog"] .status-line.from-pc {
+      margin-left: auto;
+      border-radius: 14px 14px 4px 14px;
+      background: rgba(103, 232, 249, 0.12);
+    }
+
+    .status-card[data-theme="camcorder"] {
+      background-image:
+        repeating-linear-gradient(0deg, rgba(163, 255, 128, 0.045) 0 1px, transparent 1px 4px),
+        radial-gradient(circle at center, #0e2418, #030807 75%);
+      font-family: "SFMono-Regular", Consolas, "Apple SD Gothic Neo", monospace;
+      text-shadow: 0 0 6px rgba(149, 255, 116, 0.35);
+    }
+
+    .status-card[data-theme="camcorder"]::before,
+    .status-card[data-theme="navyhud"]::before {
+      content: "";
+      position: absolute;
+      inset: 12px;
+      border: 1px solid currentColor;
+      opacity: .32;
+      pointer-events: none;
+    }
+
+    .status-card[data-theme="camcorder"] .status-line {
+      border-left: 2px solid rgba(149, 255, 116, 0.45);
+      padding-left: 9px;
+    }
+
+    .status-card[data-theme="navyhud"] {
+      background-image:
+        linear-gradient(rgba(105, 209, 224, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(105, 209, 224, 0.045) 1px, transparent 1px),
+        radial-gradient(circle at 75% 36%, rgba(68, 164, 181, 0.18), transparent 32%),
+        linear-gradient(135deg, #071522, #0e2431);
+      background-size: 28px 28px, 28px 28px, 100% 100%, 100% 100%;
+    }
+
+    .status-card[data-theme="navyhud"] .status-line {
+      border-bottom: 1px solid rgba(120, 206, 219, 0.16);
+      padding-bottom: 7px;
+    }
+
+    .status-card[data-glitch="on"] {
+      color: #ffdce2;
+      background:
+        linear-gradient(rgba(255, 62, 62, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 62, 62, 0.08) 1px, transparent 1px),
+        radial-gradient(circle at center, #3a0508 0%, #120004 78%);
+      background-size: 17px 17px, 17px 17px, 100% 100%;
+      border-color: rgba(255, 62, 62, 0.78);
+      box-shadow: 0 0 28px rgba(255, 0, 62, 0.42), inset 0 0 34px rgba(0, 0, 0, 0.92);
+      filter: contrast(1.08) saturate(1.12);
+    }
+
+    .status-card[data-glitch="on"] .title-main,
+    .status-card[data-glitch="on"] .notice-title {
+      color: #ff3e3e;
+      text-shadow: 2px 0 rgba(0, 242, 255, 0.45), -2px 0 rgba(255, 0, 62, 0.55), 0 0 12px rgba(255, 0, 62, 0.8);
+    }
+
+    .status-card[data-glitch="on"] .status-line,
+    .status-card[data-glitch="on"] .notice {
+      border-left: 2px solid rgba(255, 62, 62, 0.74);
+      background: rgba(255, 0, 62, 0.075);
+      padding-left: 9px;
+    }
+
+    .status-card[data-theme="fearless"][data-glitch="on"] {
+      background:
+        linear-gradient(rgba(255, 0, 62, 0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 242, 255, 0.04) 1px, transparent 1px),
+        radial-gradient(circle at 50% 35%, #450006 0%, #050000 72%);
+      background-size: 14px 14px, 24px 24px, 100% 100%;
+      color: #ffe5e5;
+      border-color: #ff3e3e;
+      box-shadow: 0 0 32px rgba(255, 0, 62, 0.5), inset 0 0 26px rgba(0, 0, 0, 0.95);
+    }
+
+    .status-card[data-glitch="on"] .status-line:nth-child(odd) {
+      transform: translateX(-1px);
+    }
+
+    .status-card[data-glitch="on"] .status-line:nth-child(even) {
+      transform: translateX(1px);
+    }
+
+    .meta,
+    .title,
+    .footer-mark {
+      text-align: center;
+    }
+
+    .meta {
+      margin-bottom: 10px;
+      color: var(--faint);
+      font-size: 12px;
+    }
+
+    .title {
+      margin-bottom: var(--top-gap);
+      line-height: 1.65;
+    }
+
+    .title-main {
+      color: var(--title);
+      font-size: var(--title-size);
+      font-weight: 650;
+    }
+
+    .anniv {
+      margin-top: calc(var(--top-gap) / 3);
+      color: var(--anniv);
+      font-size: 11px;
+      font-weight: var(--anniv-weight);
+      opacity: var(--anniv-opacity);
+    }
+
+    .divider {
+      margin-top: calc(var(--top-gap) / 2);
+      color: var(--faint-2);
+      font-size: 11px;
+    }
+
+    .status-line {
+      margin-bottom: var(--gap);
+      transition: transform 120ms ease;
+    }
+
+    .label {
+      color: var(--label);
+    }
+
+    .strong {
+      color: var(--strong);
+      font-weight: 700;
+    }
+
+    .bar {
+      height: var(--bar-h);
+      margin-top: 4px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--bar-bg);
+    }
+
+    .fill {
+      width: var(--fill);
+      height: 100%;
+      background: var(--fill-bg);
+    }
+
+    .notice {
+      margin-top: 6px;
+      padding: 10px 12px;
+      border: var(--notice-border);
+      border-radius: var(--notice-radius);
+      background: var(--notice-bg);
+      box-shadow: var(--notice-shadow);
+      font-size: 12px;
+    }
+
+    .notice-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .notice-title {
+      color: var(--notice-title);
+      font-weight: 700;
+    }
+
+    .notice-time {
+      color: var(--faint-2);
+      font-size: 10px;
+    }
+
+    .notice-body {
+      color: var(--notice-text);
+      line-height: 1.45;
+    }
+
+    .footer-mark {
+      margin-top: 18px;
+      color: var(--faint-2);
+      font-size: 10px;
+    }
+
+    @media (max-width: 1180px) {
+      .app {
+        grid-template-columns: minmax(310px, 380px) 1fr;
+      }
+
+      .output-shell {
+        grid-column: 1 / -1;
+        min-height: 380px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        grid-template-columns: 1fr;
+        padding: 10px;
+      }
+
+      .preview-shell {
+        order: -1;
+        top: 0;
+        height: min(64vh, 560px);
+        z-index: 4;
+      }
+
+      .preview-stage {
+        padding: 16px;
+      }
+
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="panel">
+      <div class="head">
+        <div>
+          <h1>상태창 HTML 출력기</h1>
+          <p class="hint">HTML 상태창과 유저노트 명령어를 같이 만듭니다.</p>
+        </div>
+      </div>
+
+      <div class="notice-box">
+        <strong>처음 쓰는 법</strong>
+        첫 대화 시작 시 HTML 탭의 빈 템플릿을 넣고, 유저노트 탭의 명령어를 복붙해두면 상태창 출력 규칙으로 쓸 수 있습니다. HTML이 길어질수록 채팅 지문 출력량이 줄 수 있으니 필요한 항목만 켜두는 편이 좋아요. D-day는 기준날을 따로 정해서 유저노트에 함께 넣어두는 편이 가장 안정적입니다. 유저노트 지침이 많은 편이라, 상태창 출력이 안정되면 이미 잘 지켜지는 항목/설명은 조금씩 빼서 가볍게 유지하는 것도 좋아요.
+      </div>
+
+      <div class="controls">
+        <section class="group">
+          <div class="group-title">
+            <span>디자인</span>
+            <button id="resetPreset" type="button">프리셋 초기화</button>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="theme">디자인</label>
+              <select id="theme">
+                <option value="pastel">기본 파스텔</option>
+                <option value="phone">핸드폰</option>
+                <option value="diary">다이어리</option>
+                <option value="letter">편지 카드</option>
+                <option value="chatlog">야간 채팅 로그</option>
+                <option value="camcorder">비디오 REC</option>
+                <option value="navyhud">함교 지휘 HUD</option>
+                <option value="fearless">피어리스 템플릿</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="radius">모서리</label>
+              <input id="radius" type="number" min="0" max="28" value="18">
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="width">너비</label>
+              <input id="width" type="number" min="320" max="900" value="480">
+            </div>
+            <div class="field">
+              <label for="fontSize">글자 크기</label>
+              <input id="fontSize" type="number" min="11" max="18" step="0.5" value="13.5">
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="barHeight">바 높이</label>
+              <input id="barHeight" type="number" min="4" max="14" value="8">
+            </div>
+            <div class="field">
+              <label for="gap">항목 간격</label>
+              <input id="gap" type="number" min="4" max="18" value="9">
+            </div>
+          </div>
+          <div class="field">
+            <label for="bgText">카드 배경</label>
+            <div class="color-row">
+              <input id="bgText" value="#f7f9ff">
+              <input id="bgColor" type="color" value="#f7f9ff">
+            </div>
+          </div>
+          <div class="field">
+            <label for="bgText2">그라데이션 끝</label>
+            <div class="color-row">
+              <input id="bgText2" value="#eef2ff">
+              <input id="bgColor2" type="color" value="#eef2ff">
+            </div>
+          </div>
+          <div class="field">
+            <label for="accentText">강조색</label>
+            <div class="color-row">
+              <input id="accentText" value="#6a7fdb">
+              <input id="accentColor" type="color" value="#6a7fdb">
+            </div>
+          </div>
+          <div class="toggle">
+            <label for="shadow">부드러운 그림자</label>
+            <input id="shadow" type="checkbox" checked>
+          </div>
+        </section>
+
+        <section class="group">
+          <div class="group-title">상단</div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="showDate">날짜/시간/장소</label>
+              <select id="showDate">
+                <option value="on">표시</option>
+                <option value="off">숨김</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="showTag">해시태그</label>
+              <select id="showTag">
+                <option value="on">표시</option>
+                <option value="off">숨김</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="showAnniv">D+ 함께한 시간</label>
+              <select id="showAnniv">
+                <option value="on">표시</option>
+                <option value="off">숨김</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="showDivider">장식 구분선</label>
+              <select id="showDivider">
+                <option value="on">표시</option>
+                <option value="off">숨김</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="dividerStyle">상단 구분선 디자인</label>
+            <select id="dividerStyle">
+              <option value="cute">귀여운 하트</option>
+              <option value="simple">심플</option>
+              <option value="star">별</option>
+              <option value="wave">물결</option>
+              <option value="system">시스템</option>
+              <option value="dot">점선</option>
+            </select>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="showBottomDivider">하단 구분선</label>
+              <select id="showBottomDivider">
+                <option value="on">표시</option>
+                <option value="off">숨김</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="bottomDividerStyle">하단 구분선 디자인</label>
+              <select id="bottomDividerStyle">
+                <option value="cute">귀여운 하트</option>
+                <option value="simple">심플</option>
+                <option value="star">별</option>
+                <option value="wave">물결</option>
+                <option value="system">시스템</option>
+                <option value="dot">점선</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="topGap">상단 행간/여백</label>
+            <input id="topGap" type="number" min="6" max="28" value="14">
+          </div>
+          <div class="field">
+            <label for="tagText">해시태그</label>
+            <input id="tagText" value="" placeholder="#해시태그">
+          </div>
+          <div class="field">
+            <label for="dateLine">날짜/시간/장소</label>
+            <input id="dateLine" value="00.0000.00.00 | 🕒 00:00 | 🏠 00">
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="dayCount">D+ 일수</label>
+              <input id="dayCount" type="number" min="0" value="0">
+            </div>
+            <div class="field">
+              <label for="titleEmoji">해시태그 이모지</label>
+              <input id="titleEmoji" value="💧">
+            </div>
+          </div>
+        </section>
+
+        <section class="group">
+          <div class="group-title">수치</div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="guideValue">가이딩 필요</label>
+              <input id="guideValue" type="number" min="0" max="100" value="0">
+            </div>
+            <div class="field">
+              <label for="runawayValue">폭주 임계</label>
+              <input id="runawayValue" type="number" min="0" max="100" value="0">
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="affection">애정도</label>
+              <input id="affection" type="number" min="0" max="100" value="100">
+            </div>
+            <div class="field">
+              <label for="dangerAt">폭주 전환 기준</label>
+              <input id="dangerAt" type="number" min="1" max="100" value="75">
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="allowGlitch">폭주 상태창</label>
+              <select id="allowGlitch">
+                <option value="on">사용</option>
+                <option value="off">미사용</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="forceGlitch">폭주 미리보기</label>
+              <select id="forceGlitch">
+                <option value="off">일반</option>
+                <option value="on">강제 미리보기</option>
+              </select>
+            </div>
+          </div>
+          <p class="hint">폭주 상태창은 가이딩 필요 수치나 폭주 임계가 전환 기준 이상일 때 자동으로 나타납니다. 강제 미리보기는 조건과 상관없이 폭주 디자인을 확인할 때 사용해요.</p>
+        </section>
+
+        <section class="group">
+          <div class="group-title">유저노트</div>
+          <div class="field">
+            <label for="noteMode">지침 길이</label>
+            <select id="noteMode">
+              <option value="short">짧게</option>
+              <option value="detail">자세히</option>
+            </select>
+          </div>
+          <p class="hint">짧게는 실사용용, 자세히는 디자인이 자꾸 흔들릴 때 쓰기 좋아요.</p>
+        </section>
+
+        <section class="group">
+          <div class="group-title">
+            <span>구성 선택 / 순서</span>
+            <button id="resetOrder" type="button">초기화</button>
+          </div>
+          <div class="item-add">
+            <div class="field">
+              <label for="newEmoji">이모티콘</label>
+              <input id="newEmoji" value="🧍" maxlength="6">
+            </div>
+            <div class="field">
+              <label for="newItem">구성요소</label>
+              <select id="newItem"></select>
+            </div>
+            <button id="addItem" type="button">+ 추가</button>
+          </div>
+          <div id="itemList" class="item-list"></div>
+        </section>
+
+      </div>
+    </aside>
+
+    <section class="preview-shell">
+      <div class="head">
+        <div>
+          <h2>미리보기</h2>
+          <p class="hint">선택한 항목과 순서 그대로 HTML이 생성됩니다.</p>
+        </div>
+        <button id="copyHtmlTop" type="button">HTML 복사</button>
+      </div>
+      <div class="preview-stage">
+        <div id="preview"></div>
+      </div>
+    </section>
+
+    <section class="output-shell">
+      <div class="head">
+        <div>
+          <h2>결과물</h2>
+          <p class="hint" id="copyState">마크다운 코드블록과 유저노트 명령어</p>
+        </div>
+        <button id="copyOutput" type="button">현재 탭 복사</button>
+      </div>
+      <div class="output-tabs">
+        <button class="tab active" type="button" data-tab="html">HTML</button>
+        <button class="tab" type="button" data-tab="note">유저노트</button>
+        <button class="tab" type="button" data-tab="both">둘 다</button>
+      </div>
+      <div id="countLine" class="count-line">
+        <span id="htmlCount">HTML 0자</span>
+        <span id="countHint">2000자 이하는 권장선</span>
+      </div>
+      <textarea id="output" class="code-box" spellcheck="false"></textarea>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    const itemDefs = [
+      { id: "thought", emoji: "💡", name: "속마음" },
+      { id: "guiding", emoji: "🌐", name: "가이딩 상태" },
+      { id: "schedule", emoji: "💌", name: "일정" },
+      { id: "outfit", emoji: "👔", name: "의상" },
+      { id: "situation", emoji: "📝", name: "현재 상황" },
+      { id: "affection", emoji: "❤️", name: "애정도" },
+      { id: "vitals", emoji: "💓", name: "심박수 / 체온" },
+      { id: "wants", emoji: "🔍", name: "하고 싶은 것" },
+      { id: "scribble", emoji: "✅", name: "낙서 한 줄" },
+      { id: "tmi", emoji: "💬", name: "NPC TMI" },
+      { id: "notice", emoji: "🔔", name: "알림" },
+      { id: "pose", emoji: "🧍", name: "자세" },
+      { id: "relationship", emoji: "🤝", name: "관계" },
+      { id: "praiseSticker", emoji: "⭐", name: "칭찬스티커" },
+      { id: "companyNotice", emoji: "📢", name: "사내전체공지" },
+      { id: "mutualPromise", emoji: "🤙", name: "상호약속" },
+      { id: "plot", emoji: "📚", name: "줄거리" },
+      { id: "stream", emoji: "🧠", name: "의식의흐름" },
+      { id: "wantToSay", emoji: "🗣️", name: "하고싶은말" },
+      { id: "cantSay", emoji: "🤐", name: "하지못한말" },
+      { id: "randomInterview", emoji: "🎤", name: "랜덤인터뷰" },
+      { id: "realQuote", emoji: "📖", name: "건네고 싶은 문장" },
+      { id: "extrasMind", emoji: "👥", name: "직원/행인 등 다른 조연 속마음" }
+    ];
+
+    const defaultItems = [
+      "thought", "schedule", "outfit", "affection", "tmi", "notice"
+    ];
+
+    const templateText = {
+      thought: "NPC의 속마음 한 줄",
+      schedule: "Now: 현재 일정 / After: 다음 일정",
+      outfit: "NPC 의상 / PC 의상",
+      situation: "현재 상황을 짧게 요약",
+      vitals: "💓 심박수 / 🌡 체온",
+      wants: "하고 싶은 것 1, 하고 싶은 것 2, 하고 싶은 것 3",
+      scribble: "낙서 한 줄(카오모지, 이모지 사용)",
+      tmi: "NPC의 사소한 TMI",
+      notice: "생활/정보/유머 계열 단말기 알림",
+      pose: "간단한 상황 / 구체적 자세, 체위",
+      relationship: "PC와 NPC의 현재 관계",
+      praiseSticker: "-1 / 0 / 1, 이유 기재",
+      companyNotice: "사내 전체 공지 내용",
+      mutualPromise: "1. 약속 내용 / 2. 약속 내용",
+      plot: "1단계 → 2단계 → 3단계 …",
+      stream: "기호 → 기호 → 기호",
+      wantToSay: "NPC가 하고 싶은 말",
+      cantSay: "NPC가 하지 못한 말",
+      randomInterview: "Q. 랜덤인터뷰: A. 'C의 답변'",
+      realQuote: "문학소설, 시, 노래가사, 영화명대사의 «제목»작자 - '원문'(번역), (같이전하는말)",
+      extrasMind: "[이름: 속마음]"
+    };
+
+    const dividerStyles = {
+      cute: { label: "귀여운 하트", text: "──── ⋆⋅♡⋅⋆ ────" },
+      simple: { label: "심플", text: "────────────" },
+      star: { label: "별", text: "─── ✦ ⋆ ✦ ───" },
+      wave: { label: "물결", text: "∼ ∼ ∼ ✧ ∼ ∼ ∼" },
+      system: { label: "시스템", text: "── SYSTEM LOG ──" },
+      dot: { label: "점선", text: "· · · · · · · · ·" }
+    };
+
+    let items = defaultItems.map((id) => {
+      const def = itemDefs.find((item) => item.id === id);
+      return { id, emoji: def.emoji, enabled: true };
+    });
+    let activeTab = "html";
+
+    const themes = {
+      pastel: {
+        bg1: "#f7f9ff", bg2: "#eef2ff", text: "#33374a", accent: "#6a7fdb", love1: "#ff8fab", love2: "#ff6b6b",
+        radius: 18, border: "0", noticeRadius: 16, title: "기본 파스텔", width: 480
+      },
+      phone: {
+        bg1: "#f9fbff", bg2: "#edf6ff", text: "#243040", accent: "#4f8cff", love1: "#ff8fab", love2: "#7cc7ff",
+        radius: 24, border: "1px solid rgba(79,140,255,.18)", noticeRadius: 18, title: "핸드폰", width: 480
+      },
+      diary: {
+        bg1: "#fffafc", bg2: "#fff4df", text: "#4a3b45", accent: "#c5748c", love1: "#ff9ab3", love2: "#e9a56f",
+        radius: 14, border: "1px solid rgba(196,130,150,.28)", noticeRadius: 12, title: "다이어리", width: 480
+      },
+      letter: {
+        bg1: "#fffdf6", bg2: "#f4ead8", text: "#4a4038", accent: "#b37a4c", love1: "#f2a0a1", love2: "#d78f62",
+        radius: 8, border: "1px solid rgba(173,143,112,.24)", noticeRadius: 8, title: "편지 카드", width: 500
+      },
+      chatlog: {
+        bg1: "#111827", bg2: "#1f2937", text: "#e5edf7", accent: "#67e8f9", love1: "#a78bfa", love2: "#fb7185",
+        radius: 18, border: "1px solid rgba(103,232,249,.22)", noticeRadius: 14, title: "야간 채팅 로그", width: 520
+      },
+      camcorder: {
+        bg1: "#0e2418", bg2: "#030807", text: "#a8ff78", accent: "#95ff74", love1: "#95ff74", love2: "#ff6f66",
+        radius: 20, border: "1px solid rgba(149,255,116,.62)", noticeRadius: 4, title: "비디오 REC", width: 680
+      },
+      navyhud: {
+        bg1: "#071522", bg2: "#0e2431", text: "#d8f5f8", accent: "#69d1e0", love1: "#69d1e0", love2: "#e78f8d",
+        radius: 10, border: "1px solid rgba(105,209,224,.38)", noticeRadius: 6, title: "함교 지휘 HUD", width: 680
+      },
+      fearless: {
+        bg1: "#050505", bg2: "#001115", text: "#dffcff", accent: "#00f2ff", love1: "#00f2ff", love2: "#d4af37",
+        radius: 2, border: "1px solid #00f2ff", noticeRadius: 2, title: "피어리스 템플릿", width: 560
+      }
+    };
+
+    const colorPairs = [
+      ["bgText", "bgColor"],
+      ["bgText2", "bgColor2"],
+      ["accentText", "accentColor"]
+    ];
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function compact(value) {
+      return String(value).replace(/\s+/g, " ").trim();
+    }
+
+    function shorten(value, max) {
+      const text = compact(value);
+      return text.length > max ? text.slice(0, Math.max(0, max - 1)) + "…" : text;
+    }
+
+    function textFor(id) {
+      const el = $(id);
+      return el ? el.value : templateText[id] || "";
+    }
+
+    function itemDef(id) {
+      return itemDefs.find((item) => item.id === id);
+    }
+
+    function itemEmoji(id) {
+      return items.find((item) => item.id === id)?.emoji || itemDef(id)?.emoji || "";
+    }
+
+    function itemLabel(id) {
+      const def = itemDef(id);
+      return def ? `${itemEmoji(id)} ${def.name}` : id;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, Number(value) || 0));
+    }
+
+    function hexToRgb(hex) {
+      const clean = hex.replace("#", "");
+      const value = parseInt(clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean, 16);
+      return { r: value >> 16 & 255, g: value >> 8 & 255, b: value & 255 };
+    }
+
+    function rgbToHex({ r, g, b }) {
+      return "#" + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
+    }
+
+    function mix(a, b, amount) {
+      const ca = hexToRgb(a);
+      const cb = hexToRgb(b);
+      return rgbToHex({
+        r: ca.r + (cb.r - ca.r) * amount,
+        g: ca.g + (cb.g - ca.g) * amount,
+        b: ca.b + (cb.b - ca.b) * amount
+      });
+    }
+
+    function guidingColor(value) {
+      const pct = clamp(value, 0, 100) / 100;
+      if (pct < 0.5) return mix("#7cc7ff", "#ffd166", pct * 2);
+      return mix("#ffd166", "#ff5c7a", (pct - 0.5) * 2);
+    }
+
+    function guidingGradient(value) {
+      return `linear-gradient(90deg,#7cc7ff,${guidingColor(value)})`;
+    }
+
+    function loveColor(value, theme) {
+      const pct = clamp(value, 0, 100) / 100;
+      return `linear-gradient(90deg,${mix("#c8d7ff", theme.love1, pct)},${mix("#ffd6e7", theme.love2, pct)})`;
+    }
+
+    function anniversary(day) {
+      const special = {
+        1: ["D+1 · 처음 함께한 날", true],
+        30: ["D+30 · 한 달의 기록", true],
+        50: ["D+50 · 반짝이는 중간 지점", true],
+        100: ["D+100 · 특별한 함께한 시간", true],
+        365: ["D+365 · 1년의 약속", true]
+      };
+      return special[day] || [`D+${day} · 함께한 시간`, false];
+    }
+
+    function glitchText(text) {
+      return text
+        .replaceAll("기억", "기▓")
+        .replaceAll("안정", "안정, 안정, 안정")
+        .replaceAll("사랑", "사▓")
+        .replaceAll("미소", "미ㅅ ERROR")
+        .replaceAll("순간", "0.3s");
+    }
+
+    function options() {
+      const theme = { ...themes[$("theme").value] };
+      theme.bg1 = $("bgText").value || theme.bg1;
+      theme.bg2 = $("bgText2").value || theme.bg2;
+      theme.accent = $("accentText").value || theme.accent;
+
+      const guide = clamp($("guideValue").value, 0, 100);
+      const runaway = clamp($("runawayValue").value, 0, 100);
+      const dangerAt = clamp($("dangerAt").value, 1, 100);
+      const allowGlitch = $("allowGlitch").value === "on";
+      const isGlitch = allowGlitch && ($("forceGlitch").value === "on" || guide >= dangerAt || runaway >= dangerAt);
+      const day = Math.max(0, Number($("dayCount").value) || 0);
+      const [annivText, isAnniv] = anniversary(day);
+
+      return {
+        themeKey: $("theme").value,
+        theme,
+        width: clamp($("width").value, 320, 900),
+        radius: clamp($("radius").value, 0, 28),
+        fontSize: Number($("fontSize").value) || 13.5,
+        barHeight: clamp($("barHeight").value, 4, 14),
+        gap: clamp($("gap").value, 4, 18),
+        shadow: $("shadow").checked,
+        dateLine: $("dateLine").value,
+        tagText: $("tagText").value.trim(),
+        titleEmoji: $("titleEmoji").value,
+        showDate: $("showDate").value === "on",
+        showTag: $("showTag").value === "on",
+        showAnniv: $("showAnniv").value === "on",
+        showDivider: $("showDivider").value === "on",
+        showBottomDivider: $("showBottomDivider").value === "on",
+        topGap: clamp($("topGap").value, 6, 28),
+        dividerStyle: $("dividerStyle").value,
+        divider: dividerStyles[$("dividerStyle").value] || dividerStyles.cute,
+        bottomDividerStyle: $("bottomDividerStyle").value,
+        bottomDivider: dividerStyles[$("bottomDividerStyle").value] || dividerStyles.cute,
+        day,
+        annivText,
+        isAnniv,
+        guide,
+        runaway,
+        affection: clamp($("affection").value, 0, 100),
+        allowGlitch,
+        isGlitch,
+        noteMode: $("noteMode").value
+      };
+    }
+
+    function selectedItems() {
+      return items.filter((item) => item.enabled).map((item) => item.id);
+    }
+
+    function titleLine(opt, limit = Infinity) {
+      const tag = opt.tagText || "";
+      const text = tag ? `${opt.titleEmoji} ${tag}` : opt.titleEmoji;
+      return Number.isFinite(limit) ? shorten(text, limit) : text;
+    }
+
+    function phoneTime(dateLine) {
+      const match = String(dateLine).match(/🕒\s*([^|]+)/);
+      return match ? compact(match[1]) : "00:00";
+    }
+
+    function content(id, opt, index = 0) {
+      const glitch = (value) => opt.isGlitch ? glitchText(value) : value;
+      const e = (key) => escapeHtml(itemEmoji(key));
+      const noticeTitle = opt.isGlitch ? "⚠️ WARNING" : `${e("notice")} 단말기 알림`;
+      const noticeBody = opt.isGlitch ? "가이딩 수치 이상 감지. 안정, 안정, 안정. 일부 기록이 — 처리되었습니다. ERROR 0.3s" : textFor("notice");
+      const bubble = opt.themeKey === "chatlog" && index % 2 === 1 ? " status-line from-pc" : "status-line";
+      const map = {
+        thought: `<div class="${bubble}"><span class="label">${e("thought")} </span>${escapeHtml(glitch(textFor("thought")))}</div>`,
+        guiding: `<div class="${bubble}"><span class="label">${e("guiding")} </span>가이딩 필요 수치: + ${opt.guide}% / 폭주 임계 + ${opt.runaway}%<div class="bar"><div class="fill" style="width:${Math.max(opt.guide, opt.runaway)}%;background:${guidingGradient(Math.max(opt.guide, opt.runaway))};"></div></div></div>`,
+        schedule: `<div class="${bubble}"><span class="label">${e("schedule")} 일정: </span><strong class="strong">${escapeHtml(glitch(textFor("schedule")))}</strong></div>`,
+        outfit: `<div class="${bubble}"><span class="label">${e("outfit")} 의상: </span>${escapeHtml(glitch(textFor("outfit")))}</div>`,
+        situation: `<div class="${bubble}"><span class="label">${e("situation")} 현재 상황: </span>${opt.isGlitch ? "—" : escapeHtml(textFor("situation"))}</div>`,
+        affection: `<div class="${bubble}"><span class="label">${e("affection")} 애정도 + ${opt.affection}%</span><div class="bar"><div class="fill" style="width:${opt.affection}%;background:${loveColor(opt.affection, opt.theme)};"></div></div></div>`,
+        vitals: `<div class="${bubble}"><span class="label">${e("vitals")} ${escapeHtml(glitch(textFor("vitals").replace(/^💓\s*/, "")))}</span></div>`,
+        wants: `<div class="${bubble}"><span class="label">${e("wants")} 하고 싶은 것: </span>${escapeHtml(glitch(textFor("wants")))}</div>`,
+        scribble: `<div class="${bubble}"><span class="label">${e("scribble")} 낙서 한 줄: </span>${escapeHtml(glitch(textFor("scribble")))}</div>`,
+        tmi: `<div class="${bubble}"><span class="label">${e("tmi")} TMI: </span>${escapeHtml(glitch(textFor("tmi")))}</div>`,
+        pose: `<div class="${bubble}"><span class="label">${e("pose")} 자세: </span>${escapeHtml(glitch(textFor("pose")))}</div>`,
+        relationship: `<div class="${bubble}"><span class="label">${e("relationship")} 관계: </span>${escapeHtml(glitch(textFor("relationship")))}</div>`,
+        praiseSticker: `<div class="${bubble}"><span class="label">${e("praiseSticker")} 칭찬스티커: </span>${escapeHtml(glitch(textFor("praiseSticker")))}</div>`,
+        companyNotice: `<div class="${bubble}"><span class="label">${e("companyNotice")} 사내전체공지: </span>${escapeHtml(glitch(textFor("companyNotice")))}</div>`,
+        mutualPromise: `<div class="${bubble}"><span class="label">${e("mutualPromise")} 상호약속: </span>${escapeHtml(glitch(textFor("mutualPromise")))}</div>`,
+        plot: `<div class="${bubble}"><span class="label">${e("plot")} 줄거리: </span>${escapeHtml(glitch(textFor("plot")))}</div>`,
+        stream: `<div class="${bubble}"><span class="label">${e("stream")} 의식의흐름: </span>${escapeHtml(glitch(textFor("stream")))}</div>`,
+        wantToSay: `<div class="${bubble}"><span class="label">${e("wantToSay")} 하고싶은말: </span>${escapeHtml(glitch(textFor("wantToSay")))}</div>`,
+        cantSay: `<div class="${bubble}"><span class="label">${e("cantSay")} 하지못한말: </span>${escapeHtml(glitch(textFor("cantSay")))}</div>`,
+        randomInterview: `<div class="${bubble}"><span class="label">${e("randomInterview")} 랜덤인터뷰: </span>${escapeHtml(glitch(textFor("randomInterview")))}</div>`,
+        realQuote: `<div class="${bubble}"><span class="label">${e("realQuote")} 건네고 싶은 문장: </span>${escapeHtml(glitch(textFor("realQuote")))}</div>`,
+        extrasMind: `<div class="${bubble}"><span class="label">${e("extrasMind")} 다른 조연 속마음: </span>${escapeHtml(glitch(textFor("extrasMind")))}</div>`,
+        notice: `<div class="notice"><div class="notice-head"><span class="notice-title">${noticeTitle}</span><span class="notice-time">방금</span></div><div class="notice-body">${escapeHtml(glitch(noticeBody))}</div></div>`
+      };
+      return map[id] || "";
+    }
+
+    function styleVars(opt) {
+      const titleColor = opt.isGlitch ? "#ff3e3e" : opt.theme.accent;
+      const bg = opt.isGlitch ? "radial-gradient(circle at center,#3a0508,#120004 78%)" : `linear-gradient(135deg, ${opt.theme.bg1}, ${opt.theme.bg2})`;
+      const darkUi = ["fearless", "camcorder", "navyhud", "chatlog"].includes(opt.themeKey);
+      const wideUi = ["camcorder", "navyhud"].includes(opt.themeKey);
+      const shadow = opt.isGlitch
+        ? "0 0 28px rgba(255,0,62,.42),inset 0 0 34px rgba(0,0,0,.92)"
+        : opt.themeKey === "fearless" ? "0 0 18px rgba(0,242,255,.18),inset 0 0 20px rgba(0,0,0,.9)"
+        : opt.themeKey === "camcorder" ? "0 0 20px rgba(149,255,116,.14),inset 0 0 24px rgba(0,0,0,.72)"
+        : opt.themeKey === "navyhud" ? "0 10px 26px rgba(7,21,34,.22),inset 0 0 20px rgba(105,209,224,.07)"
+        : opt.themeKey === "chatlog" ? "0 12px 28px rgba(17,24,39,.22),inset 0 0 22px rgba(255,255,255,.03)"
+        : opt.themeKey === "letter" ? "0 10px 22px rgba(96,73,48,.13)"
+        : opt.shadow ? "0 6px 20px rgba(0,0,0,.07)" : "none";
+      const label = opt.isGlitch ? "rgba(255,62,62,.82)" : darkUi ? `${opt.theme.accent}b8` : "rgba(51,55,74,.66)";
+      const faint = opt.isGlitch ? "rgba(255,220,226,.7)" : darkUi ? "rgba(216,245,248,.66)" : "rgba(51,55,74,.6)";
+      const faint2 = opt.isGlitch ? "rgba(255,62,62,.48)" : darkUi ? `${opt.theme.accent}66` : "rgba(51,55,74,.42)";
+      const barBg = darkUi ? `${opt.theme.accent}22` : opt.themeKey === "phone" ? "rgba(79,140,255,.14)" : "#e8eaf6";
+      return [
+        `--w:${opt.width}px`,
+        `--pad-y:${darkUi ? 20 : 18}px`,
+        `--pad-x:${wideUi ? 26 : darkUi ? 22 : 20}px`,
+        `--card-bg:${bg}`,
+        `--text:${opt.isGlitch ? "#ffdce2" : opt.theme.text}`,
+        `--title:${titleColor}`,
+        `--label:${label}`,
+        `--faint:${faint}`,
+        `--faint-2:${faint2}`,
+        `--strong:${opt.isGlitch ? "#ff3e3e" : opt.theme.accent}`,
+        `--anniv:${opt.isAnniv ? "#ff6b6b" : opt.theme.accent}`,
+        `--anniv-weight:${opt.isAnniv ? 800 : 600}`,
+        `--anniv-opacity:${opt.isAnniv ? 1 : .55}`,
+        `--radius:${opt.radius}px`,
+        `--border:${opt.theme.border}`,
+        `--card-shadow:${shadow}`,
+        `--font-size:${opt.fontSize}px`,
+        `--title-size:${darkUi ? 18 : 19}px`,
+        `--top-gap:${opt.topGap}px`,
+        `--bar-h:${opt.barHeight}px`,
+        `--bar-bg:${barBg}`,
+        `--gap:${opt.gap}px`,
+        `--notice-bg:${opt.isGlitch ? "rgba(0,0,0,.5)" : darkUi ? "rgba(0,0,0,.42)" : "rgba(255,255,255,.75)"}`,
+        `--notice-border:${opt.isGlitch ? "1px solid rgba(255,62,62,.65)" : darkUi ? `1px solid ${opt.theme.accent}66` : "0"}`,
+        `--notice-radius:${opt.theme.noticeRadius}px`,
+        `--notice-shadow:${opt.shadow ? "0 6px 18px rgba(0,0,0,.08)" : "none"}`,
+        `--notice-title:${opt.isGlitch ? "#ff3e3e" : opt.theme.accent}`,
+        `--notice-text:${opt.isGlitch ? "rgba(255,220,226,.82)" : darkUi ? "rgba(223,252,255,.78)" : "rgba(51,55,74,.75)"}`
+      ].join(";");
+    }
+
+    function buildCard(opt) {
+      const body = selectedItems().map((id, index) => content(id, opt, index)).join("\n\n  ");
+      const topParts = [
+        opt.themeKey === "phone" ? `  <div style="display:flex;justify-content:space-between;align-items:center;margin:-2px 2px 12px;color:var(--faint);font-size:11px;font-weight:800"><span>${escapeHtml(phoneTime(opt.dateLine))}</span><span>▮▮▮ 100%</span></div>` : "",
+        opt.themeKey === "chatlog" ? `  <div style="display:flex;justify-content:space-between;margin:0 0 10px;color:var(--faint);font-size:11px;font-weight:800"><span>DM LOG</span><span>online</span></div>` : "",
+        opt.themeKey === "camcorder" ? `  <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 12px;font-family:monospace;color:var(--title);font-weight:800"><span>REC ● 00:00:00</span><span>▰▰▰ 87%</span></div>` : "",
+        opt.themeKey === "navyhud" ? `  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin:0 0 12px;font-family:monospace;color:var(--faint);font-weight:800"><span style="padding-top:5px">BRIDGE / COMMAND</span><span style="min-width:170px;border:1px solid var(--faint-2);padding:6px 8px;background:rgba(0,0,0,.18);font-size:11px;text-align:left">COORD<br><b style="color:var(--title)">N 00°00' / E 00°00'</b></span></div>` : "",
+        opt.showDate ? `  <div class="meta">📆 ${escapeHtml(opt.dateLine)}</div>` : "",
+        (opt.showTag || opt.showAnniv || opt.showDivider) ? `  <div class="title">
+    ${opt.showTag ? `<div class="title-main">${escapeHtml(titleLine(opt, 120))}</div>` : ""}
+    ${opt.showAnniv ? `<div class="anniv">${escapeHtml(opt.annivText)}</div>` : ""}
+    ${opt.showDivider ? `<div class="divider">${escapeHtml(opt.divider.text)}</div>` : ""}
+  </div>` : ""
+      ].filter(Boolean).join("\n");
+      return `<div class="status-card" data-theme="${opt.themeKey}" data-glitch="${opt.isGlitch ? "on" : "off"}" style="${styleVars(opt)}">
+${topParts}
+
+  ${body}
+
+  ${opt.showBottomDivider ? `<div class="footer-mark">${escapeHtml(opt.bottomDivider.text)}</div>` : ""}
+</div>`;
+    }
+
+    function buildStandaloneHtml(opt) {
+      return buildCompactHtml(opt);
+    }
+
+    function compactThemeStyle(opt) {
+      if (opt.isGlitch) {
+        return opt.themeKey === "fearless"
+          ? `background:radial-gradient(circle,#450006,#050000 72%);color:#ffe5e5;border:1px solid #ff3e3e;box-shadow:0 0 26px #ff003e80`
+          : `background:radial-gradient(circle,#3a0508,#120004 78%);color:#ffdce2;border:1px solid #ff3e3e;box-shadow:0 0 26px #ff003e66`;
+      }
+      if (opt.themeKey === "fearless") {
+        return `background:radial-gradient(circle,#001115,#050505 75%);color:#dffcff;border:1px solid #00f2ff;box-shadow:0 0 18px #00f2ff33`;
+      }
+      if (opt.themeKey === "phone") {
+        return `background:linear-gradient(135deg,${opt.theme.bg1},${opt.theme.bg2});color:${opt.theme.text};border:8px solid #2430401f;box-shadow:0 12px 28px #4f8cff22`;
+      }
+      if (opt.themeKey === "diary") {
+        return `background:linear-gradient(135deg,${opt.theme.bg1},${opt.theme.bg2});color:${opt.theme.text};border:1px solid #e8bfd0;box-shadow:0 6px 18px #0001`;
+      }
+      if (opt.themeKey === "letter") {
+        return `background:linear-gradient(0deg,#ffffff9e,#ffffff9e),linear-gradient(135deg,#fffdf6,#f4ead8);color:#4a4038;border:1px solid #ad8f703d;box-shadow:0 10px 22px #60493021`;
+      }
+      if (opt.themeKey === "chatlog") {
+        return `background:radial-gradient(circle at 15% 0%,#7cc7ff21,transparent 34%),linear-gradient(135deg,#111827,#1f2937);color:#e5edf7;border:1px solid #67e8f938;box-shadow:0 12px 28px #11182738`;
+      }
+      if (opt.themeKey === "camcorder") {
+        return `background:repeating-linear-gradient(0deg,#a3ff800c 0 1px,transparent 1px 4px),radial-gradient(circle,#0e2418,#030807 75%);color:#a8ff78;border:1px solid #95ff7499;box-shadow:0 0 20px #95ff7424,inset 0 0 24px #000b`;
+      }
+      if (opt.themeKey === "navyhud") {
+        return `background:linear-gradient(rgba(105,209,224,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(105,209,224,.045) 1px,transparent 1px),linear-gradient(135deg,#071522,#0e2431);background-size:28px 28px,28px 28px,100% 100%;color:#d8f5f8;border:1px solid #69d1e061;box-shadow:0 10px 26px #07152238,inset 0 0 20px #69d1e012`;
+      }
+      return `background:linear-gradient(135deg,${opt.theme.bg1},${opt.theme.bg2});color:${opt.theme.text};box-shadow:${opt.shadow ? "0 6px 20px #0001" : "none"}`;
+    }
+
+    function compactLine(id, opt, index = 0) {
+      const glitch = (value) => opt.isGlitch ? glitchText(value) : value;
+      const e = (key) => escapeHtml(itemEmoji(key));
+      const lab = `opacity:.66`;
+      const darkUi = ["fearless", "camcorder", "navyhud", "chatlog"].includes(opt.themeKey);
+      const chatReply = opt.themeKey === "chatlog" && index % 2 === 1;
+      const m = opt.themeKey === "chatlog"
+        ? `display:block;width:fit-content;max-width:88%;box-sizing:border-box;margin:0 0 ${Math.min(opt.gap + 2, 12)}px ${chatReply ? "auto" : "0"};padding:8px 11px;border-radius:${chatReply ? "14px 14px 4px 14px" : "14px 14px 14px 4px"};background:${chatReply ? "#67e8f91f" : "#ffffff14"};box-shadow:inset 0 0 0 1px #ffffff10;overflow-wrap:anywhere`
+        : opt.themeKey === "letter"
+          ? `margin:0 0 ${Math.min(opt.gap, 10)}px;padding:7px 0;border-bottom:1px dashed #997c5e33`
+          : `margin:0 0 ${Math.min(opt.gap, 10)}px`;
+      const track = opt.isGlitch ? "#2b0508" : darkUi ? "#69d1e022" : "#e8eaf6";
+      const bar = (value, color, h = opt.barHeight) => `<i style="display:block;height:${h}px;background:${track};border-radius:9px;overflow:hidden;margin-top:4px"><i style="display:block;width:${value}%;height:100%;background:${color}"></i></i>`;
+      const noticeBody = opt.isGlitch ? "WARNING: 안정, 안정, 안정. 기록 — ERROR 0.3s" : textFor("notice");
+      const map = {
+        thought: `<p style="${m}"><b style="${lab}">${e("thought")}</b> ${escapeHtml(compact(glitch(textFor("thought"))))}</p>`,
+        guiding: `<p style="${m}"><b style="${lab}">${e("guiding")}</b> 가이딩 + ${opt.guide}% / 폭주 + ${opt.runaway}%${bar(Math.max(opt.guide, opt.runaway), guidingGradient(Math.max(opt.guide, opt.runaway)), Math.min(opt.barHeight, 8))}</p>`,
+        schedule: `<p style="${m}"><b style="${lab}">${e("schedule")}</b> <strong style="color:${opt.isGlitch ? "#ff3e3e" : opt.theme.accent}">${escapeHtml(compact(glitch(textFor("schedule"))))}</strong></p>`,
+        outfit: `<p style="${m}"><b style="${lab}">${e("outfit")}</b> ${escapeHtml(compact(glitch(textFor("outfit"))))}</p>`,
+        situation: `<p style="${m}"><b style="${lab}">${e("situation")}</b> ${opt.isGlitch ? "—" : escapeHtml(compact(textFor("situation")))}</p>`,
+        affection: `<p style="${m}"><b style="${lab}">${e("affection")}</b> 애정도 + ${opt.affection}%${bar(opt.affection, loveColor(opt.affection, opt.theme), Math.min(opt.barHeight, 8))}</p>`,
+        vitals: `<p style="${m}"><b style="${lab}">${e("vitals")} ${escapeHtml(compact(glitch(textFor("vitals").replace(/^💓\s*/, ""))))}</b></p>`,
+        wants: `<p style="${m}"><b style="${lab}">${e("wants")}</b> ${escapeHtml(compact(glitch(textFor("wants"))))}</p>`,
+        scribble: `<p style="${m}"><b style="${lab}">${e("scribble")}</b> ${escapeHtml(compact(glitch(textFor("scribble"))))}</p>`,
+        tmi: `<p style="${m}"><b style="${lab}">${e("tmi")}</b> ${escapeHtml(compact(glitch(textFor("tmi"))))}</p>`,
+        pose: `<p style="${m}"><b style="${lab}">${e("pose")} 자세:</b> ${escapeHtml(compact(glitch(textFor("pose"))))}</p>`,
+        relationship: `<p style="${m}"><b style="${lab}">${e("relationship")} 관계:</b> ${escapeHtml(compact(glitch(textFor("relationship"))))}</p>`,
+        praiseSticker: `<p style="${m}"><b style="${lab}">${e("praiseSticker")} 칭찬스티커:</b> ${escapeHtml(compact(glitch(textFor("praiseSticker"))))}</p>`,
+        companyNotice: `<p style="${m}"><b style="${lab}">${e("companyNotice")} 사내전체공지:</b> ${escapeHtml(compact(glitch(textFor("companyNotice"))))}</p>`,
+        mutualPromise: `<p style="${m}"><b style="${lab}">${e("mutualPromise")} 상호약속:</b> ${escapeHtml(compact(glitch(textFor("mutualPromise"))))}</p>`,
+        plot: `<p style="${m}"><b style="${lab}">${e("plot")} 줄거리:</b> ${escapeHtml(compact(glitch(textFor("plot"))))}</p>`,
+        stream: `<p style="${m}"><b style="${lab}">${e("stream")} 의식의흐름:</b> ${escapeHtml(compact(glitch(textFor("stream"))))}</p>`,
+        wantToSay: `<p style="${m}"><b style="${lab}">${e("wantToSay")} 하고싶은말:</b> ${escapeHtml(compact(glitch(textFor("wantToSay"))))}</p>`,
+        cantSay: `<p style="${m}"><b style="${lab}">${e("cantSay")} 하지못한말:</b> ${escapeHtml(compact(glitch(textFor("cantSay"))))}</p>`,
+        randomInterview: `<p style="${m}"><b style="${lab}">${e("randomInterview")} 랜덤인터뷰:</b> ${escapeHtml(compact(glitch(textFor("randomInterview"))))}</p>`,
+        realQuote: `<p style="${m}"><b style="${lab}">${e("realQuote")} 건네고 싶은 문장:</b> ${escapeHtml(compact(glitch(textFor("realQuote"))))}</p>`,
+        extrasMind: `<p style="${m}"><b style="${lab}">${e("extrasMind")} 다른 조연 속마음:</b> ${escapeHtml(compact(glitch(textFor("extrasMind"))))}</p>`,
+        notice: `<p style="margin:6px 0 0;padding:9px 11px;background:${opt.isGlitch ? "#0008" : darkUi ? "#0006" : "#fff9"};border:${opt.isGlitch ? "1px solid #ff3e3e99" : darkUi ? `1px solid ${opt.theme.accent}66` : "0"};border-radius:${Math.min(opt.radius, 16)}px"><b style="color:${opt.isGlitch ? "#ff3e3e" : opt.theme.accent}">${opt.isGlitch ? "⚠️ WARNING" : `${e("notice")} 알림`}</b><br>${escapeHtml(compact(glitch(noticeBody)))}</p>`
+      };
+      return map[id] || "";
+    }
+
+    function buildCompactHtml(opt) {
+      const darkUi = ["fearless", "camcorder", "navyhud", "chatlog"].includes(opt.themeKey);
+      const base = `max-width:${opt.width}px;margin:12px auto;padding:18px 20px;${compactThemeStyle(opt)};border-radius:${opt.radius}px;font-family:Pretendard,'Noto Sans KR',sans-serif;font-size:${opt.fontSize}px;line-height:1.45`;
+      const title = opt.isGlitch ? `color:#ff3e3e;text-shadow:2px 0 #00f2ff66,-2px 0 #ff003e99,0 0 10px #ff003e;font-weight:900` : darkUi ? `color:${opt.themeKey === "fearless" ? "#fff" : opt.theme.accent};text-shadow:0 0 8px ${opt.theme.accent}88;font-weight:900` : `color:${opt.theme.accent};font-weight:650`;
+      const anniv = opt.annivText;
+      const topAlign = opt.themeKey === "chatlog" ? "left" : "center";
+      const topRows = [
+        opt.themeKey === "phone" ? `<p style="margin:-2px 2px 12px;display:flex;justify-content:space-between;font-size:11px;font-weight:800;opacity:.62"><span>${escapeHtml(phoneTime(opt.dateLine))}</span><span>▮▮▮ 100%</span></p>` : "",
+        opt.themeKey === "letter" ? `<p style="margin:-2px 0 13px;color:#6b52409e;font:700 12px monospace">Dear My Lover</p>` : "",
+        opt.themeKey === "chatlog" ? `<p style="margin:0 0 10px;display:flex;justify-content:space-between;font-size:11px;font-weight:800;opacity:.62"><span>DM LOG</span><span>online</span></p>` : "",
+        opt.themeKey === "camcorder" ? `<p style="margin:0 0 10px;display:flex;justify-content:space-between;font:700 12px monospace;color:${opt.theme.accent}"><span>REC ● 00:00:00</span><span>▰▰▰ 87%</span></p>` : "",
+        opt.themeKey === "navyhud" ? `<p style="margin:0 0 10px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;font:700 12px monospace;opacity:.75"><span style="padding-top:5px">BRIDGE / COMMAND</span><span style="min-width:170px;border:1px solid ${opt.theme.accent}66;padding:6px 8px;background:#0003;font-size:11px">COORD<br><b style="color:${opt.theme.accent}">N 00°00' / E 00°00'</b></span></p>` : "",
+        opt.showDate ? `<p style="margin:0 0 10px;text-align:${topAlign};opacity:.6;font-size:12px">📆 ${escapeHtml(compact(opt.dateLine))}</p>` : "",
+        opt.showTag || opt.showAnniv || opt.showDivider ? `<div style="text-align:${topAlign};margin-bottom:${opt.topGap}px;line-height:1.65">${opt.showTag ? `<div style="font-size:${darkUi ? 18 : 19}px;${title}">${escapeHtml(titleLine(opt))}</div>` : ""}${opt.showAnniv ? `<div style="margin-top:${Math.max(3, Math.round(opt.topGap / 3))}px;font-size:11px;opacity:${opt.isAnniv ? 1 : .55};color:${opt.isAnniv ? "#ff6b6b" : opt.theme.accent};font-weight:${opt.isAnniv ? 800 : 600}">${escapeHtml(anniv)}</div>` : ""}${opt.showDivider ? `<div style="margin-top:${Math.max(4, Math.round(opt.topGap / 2))}px;font-size:11px;opacity:.4">${escapeHtml(opt.divider.text)}</div>` : ""}</div>` : ""
+      ].join("");
+      const top = `<div style="${base}">${topRows}`;
+      const body = selectedItems().map((id, index) => compactLine(id, opt, index)).join("");
+      const bottom = `${opt.showBottomDivider ? `<div style="margin-top:18px;text-align:center;font-size:10px;opacity:.4">${escapeHtml(opt.bottomDivider.text)}</div>` : ""}</div>`;
+      return `${top}${body}${bottom}`;
+    }
+
+    function buildMarkdownHtml(opt) {
+      return "```html\n" + buildStandaloneHtml(opt) + "\n```";
+    }
+
+    function buildUserNote(opt) {
+      const activeItems = selectedItems();
+      const noteLabels = {
+        wants: `${itemEmoji("wants")} 하고 싶은 것 3가지`,
+        scribble: `${itemEmoji("scribble")} 낙서 한 줄(카오모지, 이모지 사용)`,
+        pose: `${itemEmoji("pose")} 자세: 간단한 상황과 구체적 자세, 체위`,
+        relationship: `${itemEmoji("relationship")} 관계: PC와 NPC의 현재 관계`,
+        praiseSticker: `${itemEmoji("praiseSticker")} 칭찬스티커: -1, 0, 1, 이유 기재`,
+        companyNotice: `${itemEmoji("companyNotice")} 사내전체공지`,
+        mutualPromise: `${itemEmoji("mutualPromise")} 상호약속: 최대 5개 번호 붙여 나열, 1회성 약속은 완료 시 삭제`,
+        plot: `${itemEmoji("plot")} 줄거리: 3단계로 정리 후 기호 말줄임`,
+        stream: `${itemEmoji("stream")} 의식의흐름: NPC 의식의 흐름을 기호로 간단히 3단계 요약`,
+        wantToSay: `${itemEmoji("wantToSay")} 하고싶은말: NPC가 하고 싶은 말`,
+        cantSay: `${itemEmoji("cantSay")} 하지못한말: NPC가 하지 못한 말`,
+        randomInterview: `${itemEmoji("randomInterview")} 랜덤인터뷰: Q.랜덤인터뷰: A.'C의답변'`,
+        realQuote: `${itemEmoji("realQuote")} 건네고 싶은 문장: 문학소설, 시, 노래가사, 영화명대사의 «제목»작자 - '원문'(번역), (같이전하는말)`,
+        extrasMind: `${itemEmoji("extrasMind")} 직원, 행인 등 다른 조연 속마음: [이름:속마음]`
+      };
+      const items = activeItems.map((id) => noteLabels[id] || itemLabel(id)).join(" / ");
+      const topItems = [
+        opt.showDate ? "📆 계절.연도.월.일 | 🕒 시간 | 🏠 장소" : "",
+        opt.showTag ? `${opt.titleEmoji} ${opt.tagText || "해시태그 없음"}` : "",
+        opt.showAnniv ? "D+N · 함께한 시간" : "",
+        opt.showDivider ? `${opt.divider.label} 구분선(${opt.divider.text})` : ""
+      ].filter(Boolean).join(" / ") || "상단 없음";
+      const bottomDividerRule = opt.showBottomDivider
+        ? `\n- 상태창 하단에는 ${opt.bottomDivider.label} 구분선(${opt.bottomDivider.text})을 넣고, 마지막 항목과 붙지 않게 여백을 둔다.`
+        : "";
+      const designRules = {
+        pastel: [
+          "밝은 파스텔 카드 UI. #f7f9ff~#eef2ff, 강조색 #6a7fdb, 낮은 대비와 부드러운 그림자."
+        ],
+        phone: [
+          "핸드폰 화면 UI. #f9fbff~#edf6ff, 강조색 #4f8cff, 상단 시간/배터리와 둥근 베젤 느낌."
+        ],
+        diary: [
+          "다이어리/메모장 카드. #fffafc~#fff4df, 강조색 #c5748c, 따뜻한 종이 기록 느낌."
+        ],
+        letter: [
+          "편지 카드 UI. #fffdf6~#f4ead8, 강조색 #b37a4c, Dear My Lover 문구와 따뜻한 쪽지 느낌."
+        ],
+        chatlog: [
+          "야간 채팅 로그 UI. #111827~#1f2937, 강조색 #67e8f9, 좌우로 번갈아 붙는 DM 말풍선 느낌."
+        ],
+        camcorder: [
+          "비디오 REC 화면. #030807~#0e2418, 형광 연두 #95ff74, REC ●/타임코드/배터리/약한 scanline."
+        ],
+        navyhud: [
+          "함교 지휘 HUD. #071522~#0e2431, 바다 청록 #69d1e0, 얇은 격자와 오른쪽 위 COORD 좌표 패널."
+        ],
+        fearless: [
+          "검은 시스템 HUD. #050505~#001115, 네온 시안 #00f2ff, 각진 테두리와 glow."
+        ]
+      }[opt.themeKey].join("\n- ");
+      const detailRules = {
+        pastel: "흰색 반투명 알림 박스와 낮은 대비를 유지한다.",
+        phone: "상단 시간/배터리 상태바와 모바일 알림 배너 느낌을 유지한다.",
+        diary: "종이/메모장 분위기는 유지하되 장식은 과하게 늘리지 않는다.",
+        letter: "Dear My Lover 문구, 얇은 점선 구분, 따뜻한 종이톤을 유지한다.",
+        chatlog: "말풍선은 내용 길이에 맞춰 늘어나되 너무 길면 줄바꿈하고, 좌우 정렬을 섞어 DM처럼 보이게 한다.",
+        camcorder: "REC ●, 타임코드, 배터리, 약한 scanline을 유지하고 과한 네온은 피한다.",
+        navyhud: "격자는 rgba(105,209,224,.045), 28px 간격의 얇은 선으로 유지한다.",
+        fearless: "검은 배경, 네온 시안, 각진 테두리를 유지하고 파스텔 톤으로 바꾸지 않는다."
+      }[opt.themeKey];
+      const extraRules = opt.noteMode === "detail" ? `\n- ${detailRules}` : "";
+      const terminalRules = activeItems.includes("notice") ? `
+- ◦ 🔔: NPC단말기알림. 예시 참고하여 대화 흐름 방해하지 않는 선에서 세계관 디테일이나 사소한 유머 출력.
+- 생활: 택배도착, 날씨, 일정, etc.
+- 정보: 임무알림, 가이딩수치체크, 바이오리듬경고, etc.
+- 유머: 문자메시지, 사내익명게시판인기글, 스팸문자, 행운의운세, etc.` : "";
+      const glitchRules = opt.allowGlitch ? `
+- 폭주 임계에 가까우면 폭주 상태창을 사용한다.
+- 폭주 상태창 규칙: 카드가 붉은 톤으로 변질, 그림자 glow, 일부 단어 기호화(예: 기억→기▓), 짧은 단어 반복, ERROR/0.3s 같은 숫자·영문 혼입, 일부 항목은 — 처리${activeItems.includes("notice") ? ", 🔔 알림은 WARNING 고정" : ""}.` : "";
+      return `[상태창 출력 규칙]
+- 매 응답 끝에 상태창 HTML을 새로 생성한다.
+- 상태창은 반드시 마크다운 코드블록(\`\`\`html) 안에 출력한다.
+- CSS 블록은 쓰지 말고 가능한 한 짧은 inline style 위주로 작성한다.
+- ${designRules}
+- 선택한 디자인의 색감과 구조는 유지한다.${extraRules}
+- 해시태그는 "${opt.tagText || "없음"}"을 사용한다. 비어 있으면 해시태그 줄은 이모지만 출력한다.
+- 상단 형식: ${topItems}.
+- 상단 행간/여백은 ${opt.topGap}px 기준으로 유지한다. D-day를 숨겨도 해시태그와 구분선 사이가 너무 좁아지지 않게 한다.
+${bottomDividerRule}
+- D-day는 기준일을 먼저 정하고 그 기준일로부터 D+N을 계산한다. 기준일이 없다면 D+0으로 둔다.
+- 포함 항목과 순서: ${items}.
+- 가이딩/폭주/애정도 수치는 + N% 형식으로 쓰고 bar로 표현한다.
+- 기념일 D+1, D+30, D+50, D+100, D+365에는 색과 굵기만 강조한다.
+${glitchRules}${terminalRules}`;
+    }
+
+    function renderItems() {
+      $("newItem").innerHTML = itemDefs.map((item) => {
+        const added = items.some((entry) => entry.id === item.id);
+        return `<option value="${item.id}" ${added ? "disabled" : ""}>${item.emoji} ${item.name}${added ? " · 추가됨" : ""}</option>`;
+      }).join("");
+      const firstAvailable = itemDefs.find((item) => !items.some((entry) => entry.id === item.id));
+      $("newItem").value = firstAvailable?.id || "";
+      $("newEmoji").value = firstAvailable?.emoji || "➕";
+      $("itemList").innerHTML = items.map((entry, index) => {
+        const def = itemDef(entry.id);
+        const label = def ? def.name : entry.id;
+        return `<div class="item" data-id="${entry.id}">
+          <input class="emoji-input" id="emoji-${entry.id}" value="${escapeHtml(entry.emoji)}" maxlength="6" aria-label="${label} 이모티콘">
+          <select id="use-${entry.id}" aria-label="${label} 표시 여부">
+            <option value="on" ${entry.enabled ? "selected" : ""}>표시</option>
+            <option value="off" ${entry.enabled ? "" : "selected"}>숨김</option>
+          </select>
+          <label class="item-name" for="use-${entry.id}">${label}</label>
+          <button class="mini" type="button" data-move="up" data-id="${entry.id}" aria-label="위로">↑</button>
+          <button class="mini" type="button" data-move="down" data-id="${entry.id}" aria-label="아래로">↓</button>
+          <button class="mini" type="button" data-remove="${entry.id}" aria-label="삭제">×</button>
+        </div>`;
+      }).join("");
+    }
+
+    function setTheme(name) {
+      const theme = themes[name];
+      $("bgText").value = theme.bg1;
+      $("bgColor").value = theme.bg1;
+      $("bgText2").value = theme.bg2;
+      $("bgColor2").value = theme.bg2;
+      $("accentText").value = theme.accent;
+      $("accentColor").value = theme.accent;
+      $("radius").value = theme.radius;
+      $("width").value = theme.width || 480;
+    }
+
+    function resetPreset() {
+      const name = $("theme").value;
+      setTheme(name);
+      $("fontSize").value = 13.5;
+      $("barHeight").value = 8;
+      $("gap").value = 9;
+      $("topGap").value = 14;
+      $("shadow").checked = true;
+      render();
+    }
+
+    function lengthLevel(count) {
+      if (count <= 2000) return ["가벼움", false];
+      if (count <= 3200) return ["보통", false];
+      if (count <= 4500) return ["무거움", true];
+      return ["매우 무거움", true];
+    }
+
+    function render() {
+      const opt = options();
+      $("preview").innerHTML = buildCard(opt);
+      const rawHtml = buildStandaloneHtml(opt);
+      const html = "```html\n" + rawHtml + "\n```";
+      const note = buildUserNote(opt);
+      const value = activeTab === "html" ? html : activeTab === "note" ? note : `${html}\n\n${note}`;
+      $("output").value = value;
+      const [level, over] = lengthLevel(rawHtml.length);
+      $("htmlCount").textContent = `HTML ${rawHtml.length}자 · ${level}`;
+      $("countLine").classList.toggle("over", over);
+      $("countHint").textContent = over ? "경고: 길면 채팅 출력 분량이 줄어요" : "가벼운 편이에요";
+    }
+
+    function moveItem(id, dir) {
+      const index = items.findIndex((item) => item.id === id);
+      const next = dir === "up" ? index - 1 : index + 1;
+      if (next < 0 || next >= items.length) return;
+      [items[index], items[next]] = [items[next], items[index]];
+      renderItems();
+      render();
+    }
+
+    function addItem() {
+      const id = $("newItem").value;
+      if (!id || items.some((item) => item.id === id)) return;
+      const def = itemDef(id);
+      items.push({ id, emoji: $("newEmoji").value.trim() || def.emoji, enabled: true });
+      renderItems();
+      render();
+    }
+
+    colorPairs.forEach(([textId, colorId]) => {
+      $(textId).addEventListener("input", () => {
+        if (/^#[0-9a-fA-F]{6}$/.test($(textId).value)) $(colorId).value = $(textId).value;
+        render();
+      });
+      $(colorId).addEventListener("input", () => {
+        $(textId).value = $(colorId).value;
+        render();
+      });
+    });
+
+    document.addEventListener("input", (event) => {
+      if (event.target.closest(".output-shell")) return;
+      if (event.target.id === "theme") return;
+      render();
+    });
+
+    $("theme").addEventListener("change", (event) => {
+      setTheme(event.target.value);
+      render();
+    });
+
+    $("itemList").addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-move]");
+      const removeButton = event.target.closest("button[data-remove]");
+      if (button) moveItem(button.dataset.id, button.dataset.move);
+      if (removeButton) {
+        items = items.filter((item) => item.id !== removeButton.dataset.remove);
+        renderItems();
+        render();
+      }
+    });
+
+    $("itemList").addEventListener("input", (event) => {
+      const row = event.target.closest(".item");
+      if (!row) return;
+      const entry = items.find((item) => item.id === row.dataset.id);
+      if (!entry) return;
+      if (event.target.classList.contains("emoji-input")) entry.emoji = event.target.value.trim() || itemDef(entry.id).emoji;
+      if (event.target.id === `use-${entry.id}`) entry.enabled = event.target.value === "on";
+      render();
+    });
+
+    $("addItem").addEventListener("click", addItem);
+    $("newItem").addEventListener("change", () => {
+      const def = itemDef($("newItem").value);
+      if (def) $("newEmoji").value = def.emoji;
+    });
+
+    $("resetOrder").addEventListener("click", () => {
+      items = defaultItems.map((id) => {
+        const def = itemDef(id);
+        return { id, emoji: def.emoji, enabled: true };
+      });
+      renderItems();
+      render();
+    });
+
+    $("resetPreset").addEventListener("click", resetPreset);
+
+    document.querySelectorAll(".tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        activeTab = button.dataset.tab;
+        document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab === button));
+        render();
+      });
+    });
+
+    async function copyCurrent() {
+      const text = $("output").value;
+      try {
+        await navigator.clipboard.writeText(text);
+        $("copyState").textContent = "복사되었습니다.";
+      } catch {
+        $("output").select();
+        document.execCommand("copy");
+        $("copyState").textContent = "선택된 내용을 복사했습니다.";
+      }
+      window.setTimeout(() => {
+        $("copyState").textContent = "마크다운 코드블록과 유저노트 명령어";
+      }, 1700);
+    }
+
+    $("copyOutput").addEventListener("click", copyCurrent);
+    $("copyHtmlTop").addEventListener("click", () => {
+      activeTab = "html";
+      document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === "html"));
+      render();
+      copyCurrent();
+    });
+
+    renderItems();
+    render();
+  </script>
+</body>
+</html>
