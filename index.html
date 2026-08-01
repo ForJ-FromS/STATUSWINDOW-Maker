@@ -1,0 +1,928 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>상태창 HTML 출력기</title>
+<style>
+  :root{
+    --bg:#141416; --panel:#1a1a1d; --panel2:#1f1f23; --ink:#e8e6e1; --mut:#8a8890;
+    --line:#2a2a2e; --line2:#333338; --acc:#c9c7c1;
+    font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{min-height:32px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2);padding:0 10px;cursor:pointer;font-size:12px}
+  button:hover{border-color:var(--acc);color:#fff}
+  input,select{background:var(--panel2);border:1px solid var(--line2);border-radius:6px;min-height:32px;padding:0 8px;font-size:12.5px}
+  input:focus,select:focus,textarea:focus{outline:1px solid var(--acc);outline-offset:0}
+  .app{display:grid;grid-template-columns:minmax(300px,352px) minmax(480px,1.15fr) minmax(320px,420px);gap:12px;min-height:100vh;padding:12px}
+  .panel,.preview-shell,.output-shell{min-height:0;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+  .panel,.output-shell{display:flex;flex-direction:column}
+  .head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;border-bottom:1px solid var(--line)}
+  h1,h2{margin:0}
+  h1{font-size:15px;letter-spacing:.02em}
+  h2{font-size:13px}
+  .hint{margin:4px 0 0;color:var(--mut);font-size:11.5px;line-height:1.5}
+  .notice-box{margin:12px;padding:11px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--panel2);color:#b9b7b1;font-size:11.5px;line-height:1.6}
+  .notice-box strong{display:block;color:var(--ink);margin-bottom:4px}
+  .controls{overflow:auto;padding:12px}
+  .group{margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:8px;background:#18181b}
+  .group-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;font-size:12px;font-weight:700;letter-spacing:.06em;color:#d6d4cf}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .grid-2>.field{min-width:0}
+  .field{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;min-width:0}
+  .field label{font-size:11px;color:var(--mut);letter-spacing:.04em}
+  .field input,.field select{width:100%;min-width:0}
+  .color-row{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:6px;min-width:0}
+  .color-row input[type=color]{padding:2px;min-height:32px;cursor:pointer;width:40px}
+  .toggle{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:6px 0 2px;font-size:12px}
+  .toggle label{color:#c9c7c1}
+  .swatches{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .swatch{display:flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:6px;background:var(--panel2);padding:4px 8px;font-size:11px;cursor:pointer}
+  .swatch:hover{border-color:var(--acc)}
+  .swatch i{width:22px;height:12px;border-radius:3px;border:1px solid #0006;display:inline-block}
+  .seg{display:flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
+  .seg button{flex:1;border:0;border-radius:0;background:transparent;min-height:30px}
+  .seg button.on{background:#2c2c31;color:#fff}
+  .item-add{display:grid;grid-template-columns:52px 1fr auto;gap:6px;align-items:end;margin-bottom:8px}
+  .item-list{display:flex;flex-direction:column;gap:5px}
+  .item{display:grid;grid-template-columns:44px 58px 1fr auto auto auto auto;gap:5px;align-items:center;border:1px solid var(--line);border-radius:6px;background:var(--panel2);padding:5px}
+  .item .emoji-input{width:44px;text-align:center;padding:0 2px}
+  .item select{min-height:28px;font-size:11px;padding:0 4px}
+  .item-name{font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mini{min-height:26px;min-width:26px;padding:0 6px;font-size:11px}
+  .mini.pin.on{background:#3a3427;border-color:#8a7a4a;color:#e8d9a0}
+  .preview-shell{display:flex;flex-direction:column}
+  .preview-stage{flex:1;overflow:auto;padding:26px 18px;display:flex;justify-content:center;align-items:flex-start}
+  .preview-stage.bg-dark{background:#101012}
+  .preview-stage.bg-light{background:#ececec}
+  .preview-stage.bg-check{background:#151517 repeating-conic-gradient(#1c1c1f 0 25%,#151517 0 50%);background-size:22px 22px}
+  #preview{max-width:100%}
+  .output-tabs{display:flex;gap:6px;padding:10px 12px 0}
+  .tab{flex:1;border-radius:6px 6px 0 0}
+  .tab.active{background:#2c2c31;color:#fff;border-color:var(--acc)}
+  .count-line{display:flex;justify-content:space-between;padding:8px 14px;color:var(--mut);font-size:11px}
+  .count-line .warn{color:#e0a23a}
+  .code-box{flex:1;margin:0 12px 12px;padding:12px;min-height:200px;resize:none;border:1px solid var(--line2);border-radius:8px;color:#e6e2d8;background:#111114;line-height:1.55;font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;font-size:11.5px;white-space:pre-wrap}
+  .btn-row{display:flex;gap:6px;flex-wrap:wrap}
+  @media (max-width:1180px){.app{grid-template-columns:minmax(300px,370px) 1fr}.output-shell{grid-column:1/-1}}
+  @media (max-width:820px){.app{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="app">
+  <aside class="panel">
+    <div class="head">
+      <div>
+        <h1>상태창 HTML 출력기</h1>
+        <p class="hint">HTML 상태창과 유저노트 명령어를 같이 만듭니다.</p>
+      </div>
+    </div>
+    <div class="notice-box">
+      <strong>처음 쓰는 법</strong>
+      첫 대화 시작 시 HTML 탭의 템플릿을 넣고, 유저노트 탭의 명령어를 복붙해두면 상태창 출력 규칙으로 쓸 수 있습니다. 유저노트는 공통 규칙 + 선택한 테마 전용 모듈로 구성돼요. HTML이 길어질수록 채팅 지문 출력량이 줄 수 있으니 필요한 항목만 켜두는 편이 좋습니다. D-day는 기준날을 따로 정해 유저노트에 함께 넣어두는 편이 안정적이에요.
+    </div>
+    <div class="controls">
+
+      <section class="group">
+        <div class="group-title"><span>디자인</span><button id="resetPreset" type="button">프리셋 초기화</button></div>
+        <div class="field">
+          <label for="theme">테마</label>
+          <select id="theme">
+            <option value="lumen">루멘 — 라이트 에디토리얼</option>
+            <option value="widget">위젯 — 잠금화면</option>
+            <option value="ledger">레저 — 장부 수첩</option>
+            <option value="messenger">메신저 — 다크 채팅 (세로 전용)</option>
+            <option value="camcorder">캠코더 — CRT 뷰파인더</option>
+            <option value="bridge">브리지 — 함교 계기반</option>
+            <option value="sentinel">센티넬 — 파형 리드아웃</option>
+            <option value="wasteland">웨이스트랜드 — 앰버 단말</option>
+            <option value="gallery">갤러리 — 미술관 캡션</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>방향</label>
+          <div class="seg" id="orientSeg">
+            <button type="button" data-orient="v" class="on">세로</button>
+            <button type="button" data-orient="h">가로</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>추천 배색</label>
+          <div class="swatches" id="swatches"></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label for="bgText">배경색</label><div class="color-row"><input id="bgText"><input id="bgColor" type="color"></div></div>
+          <div class="field"><label for="textText">글자색</label><div class="color-row"><input id="textText"><input id="textColor" type="color"></div></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label for="accentText">강조색</label><div class="color-row"><input id="accentText"><input id="accentColor" type="color"></div></div>
+          <div class="field"><label for="lineText">괘선색</label><div class="color-row"><input id="lineText"><input id="lineColor" type="color"></div></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label for="width">너비</label><input id="width" type="number" min="320" max="900" value="420"></div>
+          <div class="field"><label for="fontSize">글자 크기</label><input id="fontSize" type="number" min="11" max="18" step="0.5" value="13"></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label for="gap">항목 간격</label><input id="gap" type="number" min="4" max="18" value="9"></div>
+          <div class="field"><label for="barHeight">바 높이</label><input id="barHeight" type="number" min="2" max="14" value="4"></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label for="radius">모서리</label><input id="radius" type="number" min="0" max="28" value="0"></div>
+          <div class="field"><label for="topGap">상단 여백</label><input id="topGap" type="number" min="6" max="28" value="14"></div>
+        </div>
+      </section>
+
+      <section class="group">
+        <div class="group-title">상단</div>
+        <div class="grid-2">
+          <div class="field"><label for="showDate">날짜/시간/장소</label><select id="showDate"><option value="on">표시</option><option value="off">숨김</option></select></div>
+          <div class="field"><label for="showTag">해시태그</label><select id="showTag"><option value="on">표시</option><option value="off">숨김</option></select></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label for="showAnniv">D+ 함께한 시간</label><select id="showAnniv"><option value="on">표시</option><option value="off">숨김</option></select></div>
+          <div class="field"><label for="showDivider">장식 구분선</label><select id="showDivider"><option value="on" selected>표시</option><option value="off">숨김</option></select></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label for="dividerStyle">상단 구분선</label>
+            <select id="dividerStyle">
+              <option value="cute">귀여운 하트</option><option value="simple" selected>심플</option><option value="star">별</option>
+              <option value="wave">물결</option><option value="system">시스템</option><option value="dot">점선</option>
+            </select>
+          </div>
+          <div class="field"><label for="showBottomDivider">하단 구분선</label><select id="showBottomDivider"><option value="on">표시</option><option value="off" selected>숨김</option></select></div>
+        </div>
+        <div class="field"><label for="bottomDividerStyle">하단 구분선 디자인</label>
+          <select id="bottomDividerStyle">
+            <option value="cute">귀여운 하트</option><option value="simple" selected>심플</option><option value="star">별</option>
+            <option value="wave">물결</option><option value="system">시스템</option><option value="dot">점선</option>
+          </select>
+        </div>
+        <div class="field"><label for="tagText">해시태그</label><input id="tagText" value="" placeholder="#해시태그"></div>
+        <div class="field"><label for="dateLine">날짜/시간/장소</label><input id="dateLine" value="0000.00.00 | 00:00 | 장소"></div>
+        <div class="field"><label for="dayCount">D+ 일수</label><input id="dayCount" type="number" min="0" value="0"></div>
+      </section>
+
+      <section class="group">
+        <div class="group-title">수치</div>
+        <div class="grid-2">
+          <div class="field"><label for="guideValue">가이딩 필요</label><input id="guideValue" type="number" min="0" max="100" value="0"></div>
+          <div class="field"><label for="runawayValue">폭주 임계</label><input id="runawayValue" type="number" min="0" max="100" value="0"></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label for="affection">애정도</label><input id="affection" type="number" min="0" max="100" value="100"></div>
+          <div class="field"><label for="dangerAt">폭주 전환 기준</label><input id="dangerAt" type="number" min="1" max="100" value="75"></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label for="allowGlitch">폭주 상태창</label><select id="allowGlitch"><option value="on">사용</option><option value="off">미사용</option></select></div>
+          <div class="field"><label for="forceGlitch">폭주 미리보기</label><select id="forceGlitch"><option value="off">일반</option><option value="on">강제 미리보기</option></select></div>
+        </div>
+        <p class="hint">폭주 시 어떤 테마든 오버드라이브(경고) 상태창으로 교체 출력됩니다. 강제 미리보기는 조건과 상관없이 확인용.</p>
+      </section>
+
+      <section class="group">
+        <div class="group-title">유저노트</div>
+        <div class="field"><label for="noteMode">지침 길이</label>
+          <select id="noteMode"><option value="short">짧게</option><option value="detail">자세히</option></select>
+        </div>
+        <p class="hint">짧게는 실사용용, 자세히는 디자인이 자꾸 흔들릴 때 쓰기 좋아요. 유저노트에는 선택한 테마의 전용 모듈이 자동으로 붙습니다.</p>
+      </section>
+
+      <section class="group">
+        <div class="group-title"><span>구성 선택 / 순서</span><button id="resetOrder" type="button">초기화</button></div>
+        <div class="item-add">
+          <div class="field"><label for="newEmoji">이모지</label><input id="newEmoji" value="🧍" maxlength="6"></div>
+          <div class="field"><label for="newItem">구성요소</label><select id="newItem"></select></div>
+          <button id="addItem" type="button">+ 추가</button>
+        </div>
+        <div id="itemList" class="item-list"></div>
+        <p class="hint">📌 = 고정 항목. 고정하면 유저노트에 "내용을 바꾸지 않고 그대로 출력" 규칙이 붙습니다.</p>
+      </section>
+
+      <section class="group">
+        <div class="group-title">도구</div>
+        <div class="field"><label>미리보기 배경</label>
+          <div class="seg" id="bgSeg">
+            <button type="button" data-bg="dark" class="on">다크</button>
+            <button type="button" data-bg="light">라이트</button>
+            <button type="button" data-bg="check">격자</button>
+          </div>
+        </div>
+        <div class="toggle"><label for="sampleMode">샘플 텍스트로 채우기</label><input id="sampleMode" type="checkbox"></div>
+        <div class="toggle"><label for="compress">HTML 압축(글자수 절약)</label><input id="compress" type="checkbox"></div>
+        <div class="field" style="margin-top:8px"><label>설정 공유</label>
+          <div class="btn-row">
+            <button id="exportBtn" type="button">설정 내보내기</button>
+            <button id="importBtn" type="button">설정 가져오기</button>
+          </div>
+        </div>
+        <p class="hint">내보내기는 현재 설정 전체(테마·색·항목 구성)를 코드로 복사합니다. 받은 코드는 가져오기에 붙여넣으면 그대로 적용돼요.</p>
+      </section>
+
+    </div>
+  </aside>
+
+  <section class="preview-shell">
+    <div class="head">
+      <div><h2>미리보기</h2><p class="hint">선택한 항목과 순서 그대로 HTML이 생성됩니다.</p></div>
+      <button id="copyHtmlTop" type="button">HTML 복사</button>
+    </div>
+    <div class="preview-stage bg-dark" id="previewStage"><div id="preview"></div></div>
+  </section>
+
+  <section class="output-shell">
+    <div class="head">
+      <div><h2>결과물</h2><p class="hint" id="copyState">마크다운 코드블록과 유저노트 명령어</p></div>
+      <button id="copyOutput" type="button">현재 탭 복사</button>
+    </div>
+    <div class="output-tabs">
+      <button class="tab active" type="button" data-tab="html">HTML</button>
+      <button class="tab" type="button" data-tab="note">유저노트</button>
+      <button class="tab" type="button" data-tab="both">둘 다</button>
+    </div>
+    <div class="count-line"><span id="htmlCount">HTML 0자</span><span id="countHint">2000자 이하 권장</span></div>
+    <textarea id="output" class="code-box" spellcheck="false"></textarea>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+/* ── 구성 요소 (원본 유지) ───────────────────────────── */
+const itemDefs = [
+  { id: "thought", emoji: "💡", name: "속마음" },
+  { id: "guiding", emoji: "🌐", name: "가이딩 상태" },
+  { id: "schedule", emoji: "💌", name: "일정" },
+  { id: "outfit", emoji: "👔", name: "의상" },
+  { id: "situation", emoji: "📝", name: "현재 상황" },
+  { id: "affection", emoji: "❤️", name: "애정도" },
+  { id: "vitals", emoji: "💓", name: "심박수 / 체온" },
+  { id: "wants", emoji: "🔍", name: "하고 싶은 것" },
+  { id: "scribble", emoji: "✅", name: "낙서 한 줄" },
+  { id: "tmi", emoji: "💬", name: "NPC TMI" },
+  { id: "notice", emoji: "🔔", name: "알림" },
+  { id: "pose", emoji: "🧍", name: "자세" },
+  { id: "relationship", emoji: "🤝", name: "관계" },
+  { id: "praiseSticker", emoji: "⭐", name: "칭찬스티커" },
+  { id: "companyNotice", emoji: "📢", name: "사내전체공지" },
+  { id: "mutualPromise", emoji: "🤙", name: "상호약속" },
+  { id: "plot", emoji: "📚", name: "줄거리" },
+  { id: "stream", emoji: "🧠", name: "의식의흐름" },
+  { id: "wantToSay", emoji: "🗣️", name: "하고싶은말" },
+  { id: "cantSay", emoji: "🤐", name: "하지못한말" },
+  { id: "randomInterview", emoji: "🎤", name: "랜덤인터뷰" },
+  { id: "realQuote", emoji: "📖", name: "건네고 싶은 문장" },
+  { id: "extrasMind", emoji: "👥", name: "직원/행인 등 다른 조연 속마음" }
+];
+const defaultItems = ["thought", "schedule", "outfit", "affection", "tmi", "notice"];
+const templateText = {
+  thought: "NPC의 속마음 한 줄",
+  schedule: "Now: 현재 일정 / After: 다음 일정",
+  outfit: "NPC 의상 / PC 의상",
+  situation: "현재 상황을 짧게 요약",
+  vitals: "심박수 / 체온",
+  wants: "하고 싶은 것 1, 하고 싶은 것 2, 하고 싶은 것 3",
+  scribble: "낙서 한 줄(카오모지, 이모지 사용)",
+  tmi: "NPC의 사소한 TMI",
+  notice: "생활/정보/유머 계열 단말기 알림",
+  pose: "간단한 상황 / 구체적 자세, 체위",
+  relationship: "PC와 NPC의 현재 관계",
+  praiseSticker: "-1 / 0 / 1, 이유 기재",
+  companyNotice: "사내 전체 공지 내용",
+  mutualPromise: "1. 약속 내용 / 2. 약속 내용",
+  plot: "1단계 → 2단계 → 3단계 …",
+  stream: "기호 → 기호 → 기호",
+  wantToSay: "NPC가 하고 싶은 말",
+  cantSay: "NPC가 하지 못한 말",
+  randomInterview: "Q. 랜덤인터뷰: A. 'C의 답변'",
+  realQuote: "문학소설, 시, 노래가사, 영화명대사의 «제목»작자 - '원문'(번역), (같이전하는말)",
+  extrasMind: "[이름: 속마음]"
+};
+const sampleText = {
+  thought: "답이 늦네. 바쁜가. 아니, 바쁘겠지. 그래도.",
+  schedule: "Now: 휴식 / After: 늦은 저녁",
+  outfit: "회색 후드, 안경 / 셔츠 차림",
+  situation: "티비 소리만 흐르게 두고 휴대폰을 세 번째 확인 중",
+  vitals: "72bpm / 36.5℃",
+  wants: "야식 시키기, 답장 받기, 일찍 자기",
+  scribble: "( ˘ ³˘) 오늘은 여기까지",
+  tmi: "배터리 19%인데 충전을 안 하는 중",
+  notice: "내일 오전 소나기 예보 — 우산을 챙기세요.",
+  pose: "소파에 모로 누움",
+  relationship: "가까워지는 중 · 서로 존댓말",
+  praiseSticker: "+1, 답장을 기다릴 줄 알게 됨",
+  companyNotice: "금주 회식은 목요일 19시입니다.",
+  mutualPromise: "1. 수요일에 만나기 / 2. 늦으면 연락하기",
+  plot: "재회 → 어색한 안부 → 다음 약속",
+  stream: "휴대폰 → 시계 → 다시 휴대폰",
+  wantToSay: "목소리 듣고 싶다는 말",
+  cantSay: "사실 아까부터 기다렸다는 말",
+  randomInterview: "Q. 지금 제일 하고 싶은 건? A. '……비밀.'",
+  realQuote: "«어느 저녁»작자 미상 - '기다림은 늦게 오는 사람의 몫이 아니다' (당신 몫도 아니길)",
+  extrasMind: "[배달기사: 이 집 또 시켰네]"
+};
+const dividerStyles = {
+  cute: { label: "귀여운 하트", text: "──── ⋆⋅♡⋅⋆ ────" },
+  simple: { label: "심플", text: "────────────" },
+  star: { label: "별", text: "─── ✦ ⋆ ✦ ───" },
+  wave: { label: "물결", text: "∼ ∼ ∼ ✧ ∼ ∼ ∼" },
+  system: { label: "시스템", text: "── SYSTEM LOG ──" },
+  dot: { label: "점선", text: "· · · · · · · · ·" }
+};
+const LONG = new Set(["thought","situation","mutualPromise","plot","realQuote","randomInterview","extrasMind","companyNotice","notice","guiding"]);
+
+/* ── 테마 정의 ───────────────────────────────────────── */
+const THEMES = {
+  lumen:    { title:"루멘", hOK:true, serif:false, colors:{bg:"#fbfaf7",text:"#2c2b28",accent:"#2c2b28",line:"#eceae4"},
+    presets:[["기본","#fbfaf7","#2c2b28","#2c2b28","#eceae4"],["웜 페이퍼","#f6f2ea","#3a332c","#8c6f4e","#e6ddcd"],["쿨 그레이","#f5f7f8","#25292e","#3d5a80","#e2e7ea"]] },
+  widget:   { title:"위젯", hOK:true, serif:false, colors:{bg:"#8ea2d0",text:"#1d2430",accent:"#5b74f5",line:"#d9b6c4"},
+    presets:[["기본","#8ea2d0","#1d2430","#5b74f5","#d9b6c4"],["선셋","#d0a08e","#302620","#f57b5b","#c4d9b6"],["미드나이트","#3a4159","#12151f","#8fa7ff","#5a6480"]] },
+  ledger:   { title:"레저", hOK:true, serif:true, colors:{bg:"#f5efe1",text:"#43392c",accent:"#c96f5e",line:"#d9cdb4"},
+    presets:[["기본","#f5efe1","#43392c","#c96f5e","#d9cdb4"],["초록 장정","#eef0e6","#38402f","#5e7a4e","#ccd2ba"],["남색 잉크","#f0efe9","#2e3444","#3f5b9e","#cfd0c4"]] },
+  messenger:{ title:"메신저", hOK:false, serif:false, colors:{bg:"#0f1115",text:"#dfe2e8",accent:"#57cf8a",line:"#23262d"},
+    presets:[["기본","#0f1115","#dfe2e8","#57cf8a","#23262d"],["블루","#0e1219","#dfe5ee","#5ba0f5","#222a38"],["라이트","#f4f5f7","#26292f","#3fae74","#e0e2e8"]] },
+  camcorder:{ title:"캠코더", hOK:true, serif:false, colors:{bg:"#000000",text:"#e6e6e6",accent:"#ffd60a",line:"#3a3a3a"},
+    presets:[["기본","#000000","#e6e6e6","#ffd60a","#3a3a3a"],["나이트비전","#04120a","#bfe8c8","#8dff9e","#1d3a28"],["세피아","#120d08","#e2d3bd","#e0a23a","#3a2f22"]] },
+  bridge:   { title:"브리지", hOK:true, serif:false, colors:{bg:"#0b1521",text:"#c4d3de",accent:"#ff9f45",line:"#24405c"},
+    presets:[["기본","#0b1521","#c4d3de","#ff9f45","#24405c"],["스틸","#14171c","#ccd2da","#8fb8d8","#2e3742"],["레드 얼럿","#180d12","#dec4c9","#ff5468","#4a2430"]] },
+  sentinel: { title:"센티넬", hOK:true, serif:false, colors:{bg:"#04070a",text:"#c9dde3",accent:"#39e0ef",line:"#123037"},
+    presets:[["기본","#04070a","#c9dde3","#39e0ef","#123037"],["골드","#0a0804","#e3dcc9","#e0b23a","#37300f"],["바이올렛","#08040c","#d9c9e3","#b078ff","#2c1240"]] },
+  wasteland:{ title:"웨이스트랜드", hOK:true, serif:false, colors:{bg:"#12100b",text:"#e8b04a",accent:"#ffd98a",line:"#6e5526"},
+    presets:[["기본","#12100b","#e8b04a","#ffd98a","#6e5526"],["그린 포스퍼","#0a0f0a","#7ed491","#c4ffcc","#2c4a30"],["아이스","#0a0e12","#8fc4d8","#d0f0ff","#2c4a5c"]] },
+  gallery:  { title:"갤러리", hOK:true, serif:true, colors:{bg:"#faf9f6",text:"#2e2c29",accent:"#2e2c29",line:"#e8e5df"},
+    presets:[["기본","#faf9f6","#2e2c29","#2e2c29","#e8e5df"],["아이보리","#f8f4ec","#3a342b","#8c6f4e","#e8e0d0"],["차콜 관","#232323","#e6e3dd","#e6e3dd","#3a3a3a"]] }
+};
+const OVR = { bg:"#0c0507", text:"#ecc9cd", accent:"#ff5468", line:"#5c1420" };
+
+/* ── 유틸 (원본 계승) ───────────────────────────────── */
+function escapeHtml(v){return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+function compact(v){return String(v).replace(/\s+/g," ").trim()}
+function clamp(v,min,max){return Math.max(min,Math.min(max,Number(v)||0))}
+function hexToRgb(hex){const c=hex.replace("#","");const n=parseInt(c.length===3?c.split("").map(x=>x+x).join(""):c,16);return{r:n>>16&255,g:n>>8&255,b:n&255}}
+function rgbToHex({r,g,b}){return "#"+[r,g,b].map(v=>Math.round(v).toString(16).padStart(2,"0")).join("")}
+function mix(a,b,t){const A=hexToRgb(a),B=hexToRgb(b);return rgbToHex({r:A.r+(B.r-A.r)*t,g:A.g+(B.g-A.g)*t,b:A.b+(B.b-A.b)*t})}
+function alpha(hex,a){const{r,g,b}=hexToRgb(hex);return `rgba(${r},${g},${b},${a})`}
+function isDark(hex){const{r,g,b}=hexToRgb(hex);return (r*.299+g*.587+b*.114)<140}
+function glitchText(t){return t.replaceAll("기억","기▓").replaceAll("안정","안정, 안정, 안정").replaceAll("사랑","사▓").replaceAll("미소","미ㅅ ERROR").replaceAll("순간","0.3s")}
+function anniversary(day){
+  const s={1:["D+1 · 처음 함께한 날",true],30:["D+30 · 한 달의 기록",true],50:["D+50 · 반짝이는 중간 지점",true],100:["D+100 · 특별한 함께한 시간",true],365:["D+365 · 1년의 약속",true]};
+  return s[day]||[`D+${day} · 함께한 시간`,false];
+}
+function korOrdinal(n){
+  if(n<=0||n>99) return `D+${n}`;
+  const tens=["","열","스물","서른","마흔","쉰","예순","일흔","여든","아흔"];
+  const units=["","한","두","세","네","다섯","여섯","일곱","여덟","아홉"];
+  const t=Math.floor(n/10),u=n%10;
+  let w=(t?tens[t]:"")+(u?units[u]:"");
+  if(!u&&t) w=tens[t].replace("스물","스무");
+  return w+" 번째 밤";
+}
+function itemDef(id){return itemDefs.find(i=>i.id===id)}
+function itemEmoji(id){return items.find(i=>i.id===id)?.emoji||itemDef(id)?.emoji||""}
+function itemLabel(id){const d=itemDef(id);return d?`${itemEmoji(id)} ${d.name}`:id}
+
+/* ── 상태 ────────────────────────────────────────────── */
+let items = defaultItems.map(id=>{const d=itemDef(id);return {id,emoji:d.emoji,enabled:true,fixed:false}});
+let activeTab="html", orient="v";
+let customColors=null; // {bg,text,accent,line} — null이면 테마 기본값
+
+/* ── 옵션 수집 ───────────────────────────────────────── */
+function options(){
+  const key=$("theme").value;
+  const base=THEMES[key];
+  const C={...base.colors,...(customColors||{})};
+  const guide=clamp($("guideValue").value,0,100);
+  const runaway=clamp($("runawayValue").value,0,100);
+  const dangerAt=clamp($("dangerAt").value,1,100);
+  const allowGlitch=$("allowGlitch").value==="on";
+  const isGlitch=allowGlitch&&($("forceGlitch").value==="on"||guide>=dangerAt||runaway>=dangerAt);
+  const day=Math.max(0,Number($("dayCount").value)||0);
+  const [annivText,isAnniv]=anniversary(day);
+  const o=(base.hOK?orient:"v");
+  return {
+    key, theme:base, C, o,
+    width:clamp($("width").value,320,900),
+    radius:clamp($("radius").value,0,28),
+    fontSize:Number($("fontSize").value)||13,
+    barHeight:clamp($("barHeight").value,2,14),
+    gap:clamp($("gap").value,4,18),
+    topGap:clamp($("topGap").value,6,28),
+    dateLine:$("dateLine").value, tagText:$("tagText").value.trim(),
+    showDate:$("showDate").value==="on", showTag:$("showTag").value==="on",
+    showAnniv:$("showAnniv").value==="on", showDivider:$("showDivider").value==="on",
+    showBottomDivider:$("showBottomDivider").value==="on",
+    divider:dividerStyles[$("dividerStyle").value]||dividerStyles.simple,
+    bottomDivider:dividerStyles[$("bottomDividerStyle").value]||dividerStyles.simple,
+    dividerStyle:$("dividerStyle").value, bottomDividerStyle:$("bottomDividerStyle").value,
+    day, annivText, isAnniv, guide, runaway, dangerAt,
+    affection:clamp($("affection").value,0,100),
+    allowGlitch, isGlitch,
+    noteMode:$("noteMode").value,
+    sample:$("sampleMode").checked, compress:$("compress").checked
+  };
+}
+function selectedItems(){return items.filter(i=>i.enabled).map(i=>i.id)}
+function fixedItems(){return items.filter(i=>i.enabled&&i.fixed).map(i=>itemDef(i.id)?.name||i.id)}
+function textFor(id,opt){const t=opt.sample?(sampleText[id]||templateText[id]):templateText[id];return opt.isGlitch?glitchText(t):t}
+
+/* ── 카드 빌더 공통 ─────────────────────────────────── */
+function gridWrap(opt,rows,colGap){
+  if(opt.o!=="h") return rows.join("");
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;column-gap:${colGap||24}px">${rows.join("")}</div>`;
+}
+function long(opt,id){return opt.o==="h"&&LONG.has(id)?";grid-column:1/-1":""}
+function bar(opt,val,color,track){
+  return `<i style="display:block;height:${opt.barHeight}px;background:${track};margin-top:5px;overflow:hidden"><i style="display:block;width:${val}%;height:100%;background:${color}"></i></i>`;
+}
+function fontStack(serif){return serif?`'Noto Serif KR','Apple SD Gothic Neo',serif`:`Pretendard,'Apple SD Gothic Neo','Noto Sans KR',sans-serif`}
+
+/* ── 테마별 빌더 ─────────────────────────────────────── */
+const BUILD = {
+
+  lumen(opt){
+    const {C}=opt, sub=mix(C.text,C.bg,.45);
+    const row=(id)=>{
+      const st=`padding:${Math.max(6,opt.gap-1)}px 0;border-bottom:1px solid ${C.line}${long(opt,id)}`;
+      const lb=`display:block;font-size:10.5px;letter-spacing:.12em;color:${sub};margin-bottom:1px`;
+      if(id==="guiding") return `<div style="${st}"><span style="${lb}">가이딩</span>+ ${opt.guide}% · 폭주 + ${opt.runaway}%${bar(opt,Math.max(opt.guide,opt.runaway),C.accent,C.line)}</div>`;
+      if(id==="affection") return `<div style="${st}"><span style="${lb}">애정도</span><span style="float:right;font-size:11px;color:${sub}">${opt.affection} / 100</span>${bar(opt,opt.affection,C.text,C.line)}</div>`;
+      if(id==="notice") return `<div style="margin-top:12px;padding:11px 12px;background:${mix(C.bg,C.text,.05)};border-left:2px solid ${C.accent};font-size:12px;color:${mix(C.text,C.bg,.2)}${long(opt,id)}"><b>알림</b> · ${escapeHtml(textFor("notice",opt))}</div>`;
+      return `<div style="${st}"><span style="${lb}">${escapeHtml(itemDef(id).name)}</span>${escapeHtml(textFor(id,opt))}</div>`;
+    };
+    const rows=selectedItems().map(row);
+    const head=`
+      ${opt.showDate?`<div style="display:flex;justify-content:space-between;font-size:11px;color:${sub};letter-spacing:.1em;margin-bottom:12px"><span>${escapeHtml(opt.dateLine)}</span></div>`:""}
+      <div style="border-bottom:1.5px solid ${C.text};padding-bottom:11px;margin-bottom:2px">
+        <div style="font-size:18px;font-weight:700">${opt.showTag&&opt.tagText?escapeHtml(opt.tagText):"이름"}</div>
+        <div style="font-size:10px;letter-spacing:.3em;color:${sub};margin-top:3px">STATUS</div>
+        ${opt.showAnniv?`<div style="font-size:10.5px;color:${opt.isAnniv?C.accent:sub};margin-top:5px;font-weight:${opt.isAnniv?700:400}">${escapeHtml(opt.annivText)}</div>`:""}
+        ${opt.showDivider?`<div style="font-size:10px;color:${alpha(C.text,.3)};margin-top:5px">${escapeHtml(opt.divider.text)}</div>`:""}
+      </div>`;
+    if(opt.o==="h"){
+      return `<div style="width:${opt.width}px;max-width:100%;display:grid;grid-template-columns:165px 1fr;column-gap:24px;padding:20px 24px;background:${C.bg};color:${C.text};border:1px solid ${mix(C.line,C.text,.1)};border-radius:${opt.radius}px;font-family:${fontStack(false)};font-size:${opt.fontSize}px;line-height:1.6">
+<div style="border-right:1.5px solid ${C.text};padding-right:20px">${head}</div>
+<div>${gridWrap(opt,rows,22)}${btmDiv(opt,sub)}</div></div>`;
+    }
+    return `<div style="width:${opt.width}px;max-width:100%;padding:24px 24px 20px;background:${C.bg};color:${C.text};border:1px solid ${mix(C.line,C.text,.1)};border-radius:${opt.radius}px;font-family:${fontStack(false)};font-size:${opt.fontSize}px;line-height:1.6">${head}${rows.join("")}${btmDiv(opt,sub)}</div>`;
+  },
+
+  widget(opt){
+    const {C}=opt, stage=`linear-gradient(160deg,${C.bg},${mix(C.bg,C.line,.7)})`;
+    const dark=isDark(C.bg);
+    const cardBg=dark?"rgba(20,22,30,.72)":"rgba(255,255,255,.66)";
+    const tx=C.text, sub=alpha(tx,.55), hl=alpha(tx,.08);
+    const dash=(100.5*(1-opt.affection/100)).toFixed(1);
+    const ring=`<svg width="42" height="42" viewBox="0 0 40 40" style="flex:none"><circle cx="20" cy="20" r="16" fill="none" stroke="${alpha(tx,.12)}" stroke-width="5"/><circle cx="20" cy="20" r="16" fill="none" stroke="${C.accent}" stroke-width="5" stroke-linecap="round" stroke-dasharray="100.5" stroke-dashoffset="${dash}" transform="rotate(-90 20 20)"/></svg>`;
+    const row=(id)=>{
+      const st=`display:flex;justify-content:space-between;gap:12px;padding:${Math.max(6,opt.gap-2)}px 0;border-top:1px solid ${hl};font-size:12px${long(opt,id)}`;
+      const lb=`color:${sub};font-weight:600;flex:none`;
+      if(id==="guiding") return `<div style="${st}"><span style="${lb}">가이딩</span><span style="font-weight:600">+${opt.guide}% · 폭주 +${opt.runaway}%</span></div>`;
+      if(id==="affection") return "";
+      if(id==="notice") return `<div style="margin-top:8px;padding:9px 12px;border-radius:12px;background:${alpha(C.accent,.1)};font-size:12px${long(opt,id)}"><b style="color:${C.accent}">알림</b> — ${escapeHtml(textFor("notice",opt))}</div>`;
+      return `<div style="${st}"><span style="${lb}">${escapeHtml(itemEmoji(id))} ${escapeHtml(itemDef(id).name)}</span><span style="font-weight:600;text-align:right">${escapeHtml(compact(textFor(id,opt)))}</span></div>`;
+    };
+    const rows=selectedItems().map(row).filter(Boolean);
+    const aff=selectedItems().includes("affection");
+    const clockDark=isDark(mix(C.bg,C.line,.35))?"#fff":"#1d2430";
+    const meta=[opt.showDate?escapeHtml(opt.dateLine):"",opt.showAnniv?escapeHtml(opt.annivText):""].filter(Boolean).join(" · ");
+    if(opt.o==="h"){
+      return `<div style="width:${opt.width}px;max-width:100%;padding:18px 20px;background:${stage};border-radius:${Math.max(opt.radius,4)}px;font-family:${fontStack(false)}">
+<div style="display:flex;align-items:center;gap:16px;background:${cardBg};border-radius:20px;padding:14px 18px;color:${tx};font-size:${opt.fontSize}px;box-shadow:0 10px 28px ${alpha(mix(C.bg,"#000000",.5),.25)}">
+<div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:9.5px;font-weight:700;color:${sub}"><i style="width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,${C.accent},${mix(C.accent,C.line,.6)});display:block"></i>STATUS</div>
+<div style="flex:1;min-width:0">
+<div style="font-size:14px;font-weight:800;margin-bottom:2px">${opt.showTag&&opt.tagText?escapeHtml(opt.tagText):"지금 상태"}</div>
+${meta?`<div style="font-size:10.5px;color:${sub};font-weight:600;margin-bottom:4px">${meta}</div>`:""}
+${gridWrap(opt,rows,20)}</div>
+${aff?`<div style="flex:none;display:flex;align-items:center;gap:8px">${ring}<div><div style="font-size:10.5px;color:${sub};font-weight:600">애정도</div><div style="font-size:14px;font-weight:800">${opt.affection}%</div></div></div>`:""}
+</div></div>`;
+    }
+    return `<div style="width:${opt.width}px;max-width:100%;padding:22px 20px;background:${stage};border-radius:${Math.max(opt.radius,4)}px;font-family:${fontStack(false)}">
+<div style="text-align:center;color:${clockDark};margin-bottom:14px"><div style="font-size:40px;font-weight:200;line-height:1.1">${escapeHtml(phoneTime(opt.dateLine))}</div>${meta?`<div style="font-size:11.5px;font-weight:600;opacity:.9">${meta}</div>`:""}</div>
+<div style="background:${cardBg};border-radius:22px;padding:16px 18px;color:${tx};font-size:${opt.fontSize}px;box-shadow:0 10px 28px ${alpha(mix(C.bg,"#000000",.5),.25)}">
+<div style="display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;color:${sub};margin-bottom:8px"><i style="width:15px;height:15px;border-radius:5px;background:linear-gradient(135deg,${C.accent},${mix(C.accent,C.line,.6)});display:inline-block"></i>STATUS${opt.showTag&&opt.tagText?` · ${escapeHtml(opt.tagText)}`:""}</div>
+${rows.join("")}
+${aff?`<div style="display:flex;align-items:center;gap:10px;padding-top:9px;border-top:1px solid ${hl}">${ring}<div><div style="font-size:10.5px;color:${sub};font-weight:600">애정도</div><div style="font-size:14px;font-weight:800">${opt.affection}%</div></div></div>`:""}
+</div></div>`;
+  },
+
+  ledger(opt){
+    const {C}=opt, sub=mix(C.text,C.bg,.42);
+    const row=(id)=>{
+      const st=`display:grid;grid-template-columns:64px 1fr;gap:10px;padding:${Math.max(5,opt.gap-3)}px 0;border-bottom:1px solid ${alpha(mix(C.line,C.text,.15),.5)};font-size:${opt.fontSize-0.5}px${long(opt,id)}`;
+      const lb=`color:${sub};font-size:11px;letter-spacing:.1em;padding-top:2px`;
+      if(id==="guiding") return `<div style="${st}"><span style="${lb}">가이딩</span><span>+${opt.guide}% (폭주 +${opt.runaway}%)</span></div>`;
+      if(id==="affection") return `<div style="${st}"><span style="${lb}">마음</span><span>${opt.affection} / 100</span></div>`;
+      if(id==="notice") return `<div style="margin-top:10px;font-size:12px;font-style:italic;color:${mix(C.text,C.bg,.25)}${long(opt,id)}"><span style="color:${C.accent}">※ </span>${escapeHtml(textFor("notice",opt))}</div>`;
+      return `<div style="${st}"><span style="${lb}">${escapeHtml(itemDef(id).name)}</span><span>${escapeHtml(textFor(id,opt))}</span></div>`;
+    };
+    const rows=selectedItems().map(row);
+    const stamp=`<span style="position:absolute;top:16px;right:18px;padding:4px 9px;border:1.5px solid ${C.accent};color:${C.accent};font-size:10px;letter-spacing:.18em;transform:rotate(4deg);opacity:.8">記錄畢</span>`;
+    const head=`<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+<span style="font-size:16px;font-weight:700">${opt.showTag&&opt.tagText?escapeHtml(opt.tagText):"오늘의 기록"}</span>
+${opt.showDate?`<span style="font-size:11.5px;font-style:italic;color:${sub}">${escapeHtml(opt.dateLine)}</span>`:""}
+${opt.showAnniv?`<span style="font-size:11px;color:${opt.isAnniv?C.accent:sub}">${escapeHtml(opt.annivText)}</span>`:""}
+</div>${opt.showDivider?`<div style="font-size:10px;color:${sub};margin:-4px 0 8px">${escapeHtml(opt.divider.text)}</div>`:""}`;
+    const body=opt.o==="h"?gridWrap(opt,rows,28):rows.join("");
+    return `<div style="position:relative;width:${opt.width}px;max-width:100%;padding:22px 22px 18px 44px;background:${C.bg};color:${C.text};border:1px solid ${mix(C.line,C.text,.08)};border-radius:${opt.radius}px;font-family:${fontStack(true)};font-size:${opt.fontSize}px;line-height:1.65">
+<i style="position:absolute;top:0;bottom:0;left:31px;width:1px;background:${C.accent};opacity:.6"></i>
+<i style="position:absolute;top:14px;bottom:14px;left:12px;width:4px;background:repeating-linear-gradient(0deg,${mix(C.line,C.text,.2)} 0 4px,transparent 4px 16px);border-radius:2px"></i>
+${stamp}${head}${body}${btmDiv(opt,sub)}</div>`;
+  },
+
+  messenger(opt){
+    const {C}=opt, dark=isDark(C.bg);
+    const sub=mix(C.text,C.bg,.5), line=C.line;
+    const bubBg=dark?alpha("#ffffff",.07):alpha("#000000",.05);
+    const meBg=alpha(C.accent,dark?.18:.14);
+    const row=(id,i)=>{
+      const me=i%2===1;
+      const st=`max-width:84%;width:fit-content;padding:8px 12px;border-radius:${me?"14px 3px 14px 14px":"3px 14px 14px 14px"};background:${me?meBg:bubBg};margin:${me?"0 0 4px auto":"0 auto 4px 0"};font-size:${opt.fontSize-0.5}px`;
+      const lb=`display:block;color:${sub};font-size:9.5px;margin-bottom:2px;letter-spacing:.08em`;
+      if(id==="guiding") return `<div style="${st}"><span style="${lb}">가이딩</span>+${opt.guide}% · 폭주 +${opt.runaway}%</div>`;
+      if(id==="affection") return `<div style="text-align:center;font-size:10px;color:${sub};margin:8px 0">— 애정도 ${opt.affection} / 100 —</div>`;
+      if(id==="notice") return `<div style="text-align:center;font-size:11px;color:${sub};background:${bubBg};border-radius:10px;padding:8px 12px;margin:8px 0">🔔 ${escapeHtml(textFor("notice",opt))}</div>`;
+      return `<div style="${st}"><span style="${lb}">${escapeHtml(itemEmoji(id))} ${escapeHtml(itemDef(id).name)}</span>${escapeHtml(textFor(id,opt))}</div>`;
+    };
+    const rows=selectedItems().map(row);
+    return `<div style="width:${opt.width}px;max-width:100%;background:${C.bg};color:${C.text};border:1px solid ${line};border-radius:${Math.max(opt.radius,10)}px;font-family:${fontStack(false)};font-size:${opt.fontSize}px;line-height:1.55;overflow:hidden">
+<div style="display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid ${line};background:${mix(C.bg,dark?"#ffffff":"#000000",.03)}">
+<i style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,${mix(C.bg,C.text,.25)},${mix(C.bg,C.text,.08)});display:block;flex:none"></i>
+<div><div style="font-size:13px;font-weight:700">${opt.showTag&&opt.tagText?escapeHtml(opt.tagText):"이름"}</div><div style="font-size:10px;color:${C.accent}">● 온라인${opt.showAnniv?` · ${escapeHtml(opt.annivText)}`:""}</div></div></div>
+<div style="padding:14px 15px">
+${opt.showDate?`<div style="text-align:center;font-size:10px;color:${sub};margin-bottom:11px">— ${escapeHtml(opt.dateLine)} —</div>`:""}
+${rows.join("")}
+</div>
+<div style="display:flex;align-items:center;margin:0 15px 14px;padding:8px 13px;border-radius:999px;background:${bubBg};color:${sub};font-size:12px">메시지 입력…<b style="margin-left:auto;color:${C.accent}">➤</b></div></div>`;
+  },
+
+  camcorder(opt){
+    const {C}=opt, sub=mix(C.text,C.bg,.4);
+    const row=(id)=>{
+      const st=`margin-bottom:${Math.max(5,opt.gap-3)}px${long(opt,id)}`;
+      const lb=`color:${C.bg==="#000000"?"#fff":mix(C.text,C.bg,.1)};background:${alpha(C.text,.12)};padding:1px 5px;margin-right:7px;font-size:10px;letter-spacing:.1em`;
+      if(id==="guiding") return `<div style="${st}"><b style="${lb}">가이딩</b>+${opt.guide}% / 폭주 +${opt.runaway}%</div>`;
+      if(id==="affection") return `<div style="${st}"><b style="${lb}">수치</b>애정도 ${opt.affection} / 100</div>`;
+      if(id==="notice") return `<div style="margin-top:8px;border:1px dashed ${alpha(C.text,.3)};padding:8px 10px;font-size:11px${long(opt,id)}"><b style="letter-spacing:.14em">알림</b> · ${escapeHtml(textFor("notice",opt))}</div>`;
+      return `<div style="${st}"><b style="${lb}">${escapeHtml(itemDef(id).name)}</b>${escapeHtml(textFor(id,opt))}</div>`;
+    };
+    const rows=selectedItems().map(row);
+    const body=opt.o==="h"?gridWrap(opt,rows,28):rows.join("");
+    return `<div style="position:relative;width:${opt.width}px;max-width:100%;padding:${opt.o==="h"?"16px 20px":"18px 20px"};background:repeating-linear-gradient(0deg,${alpha(C.text,.02)} 0 1px,transparent 1px 3px),${C.bg};color:${C.text};border-radius:${Math.max(opt.radius,8)}px;box-shadow:inset 0 0 60px ${alpha("#000000",.8)};font-family:'SFMono-Regular',Consolas,'Apple SD Gothic Neo',monospace;font-size:${opt.fontSize-1.5}px;line-height:1.6">
+<div style="display:flex;justify-content:space-between;margin-bottom:${opt.o==="h"?10:14}px"><span style="color:#ff3b30;font-weight:700">● REC</span><span style="color:${sub};font-size:10px;letter-spacing:.2em">${opt.showTag&&opt.tagText?escapeHtml(opt.tagText):"CAM 01"}</span><span style="color:${sub}">▮▮▮▯ 78%</span></div>
+${opt.showDivider?`<div style="text-align:center;font-size:10px;color:${sub};margin-bottom:8px">${escapeHtml(opt.divider.text)}</div>`:""}
+${body}
+<div style="display:flex;justify-content:space-between;margin-top:12px;color:${sub}"><span>AF LOCK${opt.showAnniv?` · ${escapeHtml(opt.annivText)}`:""}</span><span style="color:${C.accent};letter-spacing:.06em">${opt.showDate?escapeHtml(opt.dateLine):"00:00:00:00"}</span></div></div>`;
+  },
+
+  bridge(opt){
+    const {C}=opt, sub=mix(C.text,C.bg,.42), cellLine=mix(C.line,C.bg,.35);
+    const cell=(lb,v,wide)=>`<div style="padding:10px 14px;border-right:1px solid ${cellLine};border-bottom:1px solid ${cellLine}${wide?";grid-column:1/-1;border-right:0":""}"><span style="display:block;font-size:9.5px;letter-spacing:.2em;color:${sub};margin-bottom:3px">${lb}</span><span style="font-size:${opt.fontSize-0.5}px;color:${mix(C.text,"#ffffff",isDark(C.bg)?.35:0)}">${v}</span></div>`;
+    const cells=selectedItems().map(id=>{
+      if(id==="guiding") return cell("가이딩",`+${opt.guide}% / 폭주 +${opt.runaway}%`,false);
+      if(id==="affection") return cell("애정도",`${opt.affection} / 100`,false);
+      if(id==="notice") return "";
+      return cell(escapeHtml(itemDef(id).name),escapeHtml(textFor(id,opt)),LONG.has(id));
+    }).filter(Boolean);
+    const noticeOn=selectedItems().includes("notice");
+    const ticks=Array.from({length:opt.o==="h"?15:10},(_,i)=>`<span style="border-left:1px solid ${mix(C.line,C.text,.2)};padding:0 0 4px 3px;height:${i%3===0?20:13}px;display:inline-block;color:${i%3===0?C.text:sub};font-size:9px;font-family:monospace">${i%3===0?String(20+i*3).padStart(3,"0"):""}</span>`).join("<span style='display:inline-block;width:11px'></span>");
+    return `<div style="width:${opt.width}px;max-width:100%;background:${C.bg};color:${C.text};border:1px solid ${C.line};border-radius:${opt.radius}px;font-family:${fontStack(false)};font-size:${opt.fontSize}px;line-height:1.55;overflow:hidden">
+<div style="display:flex;justify-content:space-between;align-items:center;background:${mix(C.bg,C.line,.4)};padding:10px 16px;border-bottom:1px solid ${C.line}">
+<span style="font-weight:700;letter-spacing:.08em">${opt.showTag&&opt.tagText?escapeHtml(opt.tagText):"BRIDGE"}</span>
+<span style="font-size:9.5px;letter-spacing:.2em;color:${C.accent};border:1px solid ${alpha(C.accent,.5)};padding:2px 7px">ON WATCH</span></div>
+<div style="position:relative;height:32px;border-bottom:1px solid ${C.line};background:${mix(C.bg,"#000000",.25)};overflow:hidden;white-space:nowrap;padding:0 8px;display:flex;align-items:flex-end">${ticks}<i style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:${C.accent}"></i></div>
+${opt.showDate?`<div style="padding:8px 16px 0;font-family:monospace;font-size:10.5px;color:${sub};letter-spacing:.08em">${escapeHtml(opt.dateLine)}${opt.showAnniv?` · ${escapeHtml(opt.annivText)}`:""}</div>`:""}
+<div style="display:grid;grid-template-columns:${opt.o==="h"?"repeat(4,1fr)":"1fr 1fr"}">${cells.join("")}</div>
+${noticeOn?`<div style="padding:10px 16px;font-size:${opt.fontSize-1}px;color:${mix(C.text,C.bg,.2)};background:${mix(C.bg,"#000000",.25)}"><b style="color:${C.accent};font-weight:400;margin-right:8px;font-size:10px;letter-spacing:.15em">NOTICE</b>${escapeHtml(textFor("notice",opt))}</div>`:""}</div>`;
+  },
+
+  sentinel(opt){
+    const {C}=opt, sub=mix(C.text,C.bg,.42);
+    const wavePath=opt.guide>70?"M0 24 L20 24 24 4 28 44 32 10 36 40 40 18 60 24 80 24 84 2 88 46 92 8 96 42 100 20 120 24 160 24 164 4 168 44 172 12 176 38 180 24 220 24 240 24 244 6 248 42 252 14 256 36 260 24 300 24 360 24"
+      :opt.guide>40?"M0 24 L28 24 34 10 40 38 46 18 60 24 96 24 102 12 108 36 114 20 130 24 180 24 186 8 192 40 198 16 214 24 268 24 274 12 280 36 286 20 300 24 360 24"
+      :"M0 24 L40 24 46 16 52 32 58 22 70 24 130 24 136 18 142 30 148 23 160 24 230 24 236 17 242 31 248 23 260 24 360 24";
+    const wave=`<svg viewBox="0 0 360 48" preserveAspectRatio="none" style="display:block;width:100%;height:44px"><path d="${wavePath}" fill="none" stroke="${C.accent}" stroke-width="1.5" opacity=".9"/><path d="M0 24 H360" stroke="${C.line}" stroke-width="1"/></svg>`;
+    const row=(id)=>{
+      const st=`display:flex;gap:12px;padding:${Math.max(6,opt.gap-2)}px 0;border-bottom:1px solid ${alpha(C.line,.7)};font-size:${opt.fontSize-0.5}px${long(opt,id)}`;
+      const lb=`color:${sub};letter-spacing:.1em;font-size:11px;flex:none;padding-top:1px`;
+      if(id==="guiding"||id==="affection") return "";
+      if(id==="notice") return `<div style="margin-top:12px;padding:9px 12px;border-left:2px solid ${C.accent};background:${mix(C.bg,C.accent,.05)};color:${mix(C.text,C.bg,.2)};font-size:${opt.fontSize-1}px${long(opt,id)}">${escapeHtml(textFor("notice",opt))}</div>`;
+      return `<div style="${st}"><span style="${lb}">${escapeHtml(itemDef(id).name)}</span><span>${escapeHtml(textFor(id,opt))}</span></div>`;
+    };
+    const rows=selectedItems().map(row).filter(Boolean);
+    const stats=`<div style="min-width:118px;font-size:12px"><div style="display:flex;justify-content:space-between;gap:12px"><span style="color:${sub};font-size:11px;letter-spacing:.1em">폭주 임계</span><b style="font-family:monospace;color:${C.accent};font-weight:400">${opt.runaway}%</b></div><div style="display:flex;justify-content:space-between;gap:12px;margin-top:4px"><span style="color:${sub};font-size:11px;letter-spacing:.1em">애정도</span><b style="font-family:monospace;color:${C.accent};font-weight:400">${opt.affection}</b></div></div>`;
+    const num=`<div><div style="font-size:${opt.o==="h"?38:44}px;font-weight:200;color:${C.accent};letter-spacing:-.03em;line-height:1">${opt.guide}%</div><div style="font-size:10.5px;color:${sub};letter-spacing:.14em;margin-top:3px">가이딩 필요</div></div>`;
+    const meta=`<div style="display:flex;justify-content:space-between;font-family:monospace;font-size:10px;color:${mix(sub,C.bg,.2)};letter-spacing:.12em;margin-bottom:12px"><span>${opt.showTag&&opt.tagText?escapeHtml(opt.tagText):"LINK SYSTEM"}</span><span>${opt.showDate?escapeHtml(opt.dateLine):""}${opt.showAnniv?` · ${escapeHtml(opt.annivText)}`:""}</span></div>`;
+    const top=opt.o==="h"
+      ?`<div style="display:grid;grid-template-columns:auto 1fr auto;gap:0 22px;align-items:center;padding-bottom:11px;border-bottom:1px solid ${C.line}">${num}${wave}${stats}</div>`
+      :`${num}${wave}<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid ${C.line};font-size:12px"><span style="color:${sub};font-size:11px;letter-spacing:.1em">폭주 임계</span><b style="font-family:monospace;color:${C.accent};font-weight:400">${opt.runaway}%</b></div>`;
+    return `<div style="width:${opt.width}px;max-width:100%;padding:${opt.o==="h"?"18px 24px":"20px 24px"};background:${C.bg};color:${C.text};border:1px solid ${C.line};border-radius:${opt.radius}px;border-top:2px solid ${C.accent};font-family:${fontStack(false)};font-size:${opt.fontSize}px;line-height:1.6">${meta}${top}${opt.o==="h"?`<div style="margin-top:4px">${gridWrap(opt,rows,24)}</div>`:rows.join("")}</div>`;
+  },
+
+  wasteland(opt){
+    const {C}=opt, sub=mix(C.text,C.bg,.4);
+    const blocks=(v)=>{const n=Math.round(clamp(v,0,100)/10);return "█".repeat(n)+"░".repeat(10-n)};
+    const row=(id)=>{
+      const st=`margin-bottom:${Math.max(5,opt.gap-3)}px${long(opt,id)}`;
+      const k=(t)=>`<span style="color:${mix(C.text,C.bg,.25)}">${t} :</span> `;
+      if(id==="guiding") return `<div style="${st}">${k("가이딩")}+${opt.guide}% <span style="color:${C.accent}">[${blocks(opt.guide)}]</span> 폭주 +${opt.runaway}%</div>`;
+      if(id==="affection") return `<div style="${st}">${k("애정도")}${opt.affection}% <span style="color:${C.accent}">[${blocks(opt.affection)}]</span></div>`;
+      if(id==="notice") return `<div style="margin-top:10px;border-top:1px dashed ${C.line};padding-top:9px;font-size:${opt.fontSize-2}px;color:${mix(C.text,C.accent,.3)}${long(opt,id)}">⚠ ${escapeHtml(textFor("notice",opt))}<span style="display:inline-block;width:8px;height:12px;background:${C.text};vertical-align:-2px;margin-left:8px"></span></div>`;
+      return `<div style="${st}">${k(escapeHtml(itemDef(id).name))}${escapeHtml(textFor(id,opt))}</div>`;
+    };
+    const rows=selectedItems().map(row);
+    const body=opt.o==="h"?gridWrap(opt,rows,30):rows.join("");
+    return `<div style="position:relative;width:${opt.width}px;max-width:100%;padding:${opt.o==="h"?"15px 20px":"18px 20px"};background:repeating-linear-gradient(0deg,${alpha("#000000",.22)} 0 2px,transparent 2px 4px),${C.bg};color:${C.text};border:2px solid ${mix(C.line,C.bg,.5)};border-radius:${Math.max(opt.radius,6)}px;font-family:'SFMono-Regular',Consolas,'Apple SD Gothic Neo',monospace;font-size:${opt.fontSize-1}px;line-height:1.65;text-shadow:0 0 4px ${alpha(C.text,.35)}">
+<div style="border:1px solid ${C.line};padding:6px 10px;margin-bottom:11px;display:flex;justify-content:space-between;letter-spacing:.14em;font-size:${opt.fontSize-2.5}px"><span>${opt.showTag&&opt.tagText?escapeHtml(opt.tagText):"FIELD TERMINAL"}</span><b style="color:${C.accent}">${opt.showDate?escapeHtml(opt.dateLine):"UNIT"}</b></div>
+${opt.showAnniv?`<div style="font-size:10px;color:${sub};margin-bottom:8px">&gt; ${escapeHtml(opt.annivText)}</div>`:""}
+${body}</div>`;
+  },
+
+  gallery(opt){
+    const {C}=opt, sub=mix(C.text,C.bg,.5);
+    const dots=(v)=>{const n=Math.round(clamp(v,0,100)/10);return `<span style="letter-spacing:4px;color:${C.text}">${"●".repeat(n)}</span><span style="letter-spacing:4px;color:${mix(C.text,C.bg,.72)}">${"○".repeat(10-n)}</span>`};
+    const row=(id)=>{
+      const st=`margin-bottom:${Math.max(7,opt.gap-1)}px${long(opt,id)}`;
+      const lb=`display:block;font-size:10px;letter-spacing:.22em;color:${sub};margin-bottom:2px;font-family:${fontStack(false)}`;
+      if(id==="guiding") return `<div style="${st}"><span style="${lb}">가이딩</span><span>안정과 동요 사이, ${opt.guide}쯤</span></div>`;
+      if(id==="affection") return `<div style="${st}"><span style="${lb}">호감도</span>${dots(opt.affection)}</div>`;
+      if(id==="notice") return "";
+      return `<div style="${st}"><span style="${lb}">${escapeHtml(itemDef(id).name)}</span><span style="color:${mix(C.text,C.bg,.1)}">${escapeHtml(textFor(id,opt))}</span></div>`;
+    };
+    const rows=selectedItems().map(row).filter(Boolean);
+    const noticeOn=selectedItems().includes("notice");
+    const foot=`<div style="margin-top:${opt.o==="h"?8:18}px;padding-top:11px;border-top:1px solid ${C.line};display:flex;justify-content:space-between;font-size:10px;letter-spacing:.14em;color:${sub};font-family:${fontStack(false)}${opt.o==="h"?";grid-column:1/-1":""}"><span>${opt.showAnniv?escapeHtml(korOrdinal(opt.day)):""}</span><span>${noticeOn?escapeHtml(compact(textFor("notice",opt))):""}</span></div>`;
+    const head=`
+<div style="font-size:10px;letter-spacing:.28em;color:${sub};font-family:${fontStack(false)}">${opt.showTag&&opt.tagText?escapeHtml(opt.tagText):"상설전 — 오늘의 기록"}</div>
+<div style="margin-top:${opt.o==="h"?12:20}px"><div style="font-size:17px;font-weight:600">「작품 제목 자리」</div>
+<div style="font-size:11.5px;color:${mix(C.text,C.bg,.45)};margin-top:4px">${opt.showDate?escapeHtml(opt.dateLine):"연도 · 재료 · 소장"}</div></div>
+<i style="display:block;width:26px;height:1px;background:${C.text};margin:16px 0"></i>
+${opt.showDivider?`<div style="font-size:10px;color:${alpha(C.text,.28)};margin:-8px 0 10px">${escapeHtml(opt.divider.text)}</div>`:""}`;
+    if(opt.o==="h"){
+      return `<div style="width:${opt.width}px;max-width:100%;display:grid;grid-template-columns:180px 1fr;column-gap:28px;padding:24px 26px 18px;background:${C.bg};color:${C.text};border:1px solid ${mix(C.line,C.text,.08)};border-radius:${opt.radius}px;font-family:${fontStack(true)};font-size:${opt.fontSize}px;line-height:1.7">
+<div style="border-right:1px solid ${C.line};padding-right:24px">${head}</div>
+<div>${gridWrap(opt,rows,26)}${foot}</div></div>`;
+    }
+    return `<div style="width:${opt.width}px;max-width:100%;padding:28px 26px 20px;background:${C.bg};color:${C.text};border:1px solid ${mix(C.line,C.text,.08)};border-radius:${opt.radius}px;font-family:${fontStack(true)};font-size:${opt.fontSize}px;line-height:1.7">${head}${rows.join("")}${foot}</div>`;
+  },
+
+  overdrive(opt){
+    const C=OVR, sub=mix(C.text,C.bg,.4);
+    const row=(id)=>{
+      const st=`padding:${Math.max(5,opt.gap-3)}px 0;border-bottom:1px solid ${alpha(C.line,.6)};font-size:${opt.fontSize-0.5}px${long(opt,id)}`;
+      const lb=`color:${mix(C.text,C.bg,.3)};letter-spacing:.12em;font-size:11px;margin-right:10px`;
+      if(id==="guiding") return `<div style="${st}"><span style="${lb}">폭주 임계</span><b style="float:right;font-family:monospace;color:${C.accent}">${opt.runaway}%</b>${bar(opt,Math.max(opt.guide,opt.runaway),`repeating-linear-gradient(-45deg,${C.accent} 0 6px,${mix(C.accent,"#000000",.4)} 6px 12px)`,mix(C.bg,C.accent,.12))}</div>`;
+      if(id==="affection") return `<div style="${st}"><span style="${lb}">가이딩 필요</span><b style="float:right;font-family:monospace;color:${C.accent}">IMMEDIATE</b></div>`;
+      if(id==="notice") return `<div style="margin-top:10px;padding:9px 12px;border:1px solid ${C.line};background:${mix(C.bg,"#000000",.4)};color:${mix(C.text,C.bg,.15)};font-size:${opt.fontSize-1}px${long(opt,id)}">즉시 가이딩이 필요합니다. ${escapeHtml(glitchText(textFor("notice",{...opt,isGlitch:false})))}</div>`;
+      const t=glitchText(templateText[id]||"");
+      return `<div style="${st}"><span style="${lb}">${escapeHtml(itemDef(id).name)}</span>${escapeHtml(id==="thought"?"……시끄럽다. 전부.":t)}</div>`;
+    };
+    const rows=selectedItems().map(row);
+    const alert=`<div style="background:${C.accent};color:#14040a;font-weight:800;letter-spacing:.18em;font-size:11px;padding:${opt.o==="h"?"8px 14px":"6px 10px"};display:flex;${opt.o==="h"?"flex-direction:column;gap:2px;align-items:center;justify-content:center;text-align:center;align-self:start":"justify-content:space-between"}"><span>RUNAWAY</span><span style="${opt.o==="h"?"font-size:15px":""}">${Math.max(opt.guide,opt.runaway)}%</span></div>`;
+    const meta=`<div style="display:flex;justify-content:space-between;font-family:monospace;font-size:10px;color:${sub};letter-spacing:.12em;margin-bottom:10px${opt.o==="h"?";grid-column:1/-1":""}"><span>${opt.showTag&&opt.tagText?escapeHtml(opt.tagText):"LINK SYSTEM"}</span><span>!! ALERT ${opt.showDate?"· "+escapeHtml(opt.dateLine):""}</span></div>`;
+    const hz=`<i style="display:block;height:8px;background:repeating-linear-gradient(-45deg,${mix(C.accent,"#000000",.2)} 0 10px,${C.bg} 10px 20px)"></i>`;
+    const inner=opt.o==="h"
+      ?`<div style="padding:13px 20px 16px;display:grid;grid-template-columns:auto 1fr;gap:4px 20px">${meta}${alert}<div>${gridWrap(opt,rows,22)}</div></div>`
+      :`<div style="padding:15px 20px 18px">${meta}${alert}<div style="margin-top:12px">${rows.join("")}</div></div>`;
+    return `<div style="width:${opt.width}px;max-width:100%;background:${C.bg};color:${C.text};border:1px solid ${C.line};border-radius:${opt.radius}px;font-family:${fontStack(false)};font-size:${opt.fontSize}px;line-height:1.6;overflow:hidden">${hz}${inner}</div>`;
+  }
+};
+
+function phoneTime(dateLine){const m=String(dateLine).match(/(\d{1,2}:\d{2})/);return m?m[1]:"00:00"}
+function btmDiv(opt,color){return opt.showBottomDivider?`<div style="margin-top:14px;text-align:center;font-size:10px;color:${color}${opt.o==="h"?";grid-column:1/-1":""}">${escapeHtml(opt.bottomDivider.text)}</div>`:""}
+function buildCard(opt){return (opt.isGlitch?BUILD.overdrive:BUILD[opt.key])(opt)}
+
+/* ── 유저노트 (공통 + 테마 모듈) ─────────────────────── */
+const MODULES = {
+  lumen:{s:`[루멘 규칙] 모든 항목은 담백한 문어체 한 줄. 이모지·특수문자 금지. 게이지 바의 width 퍼센트를 수치와 같은 값으로 갱신.`,
+    d:`- 문장은 마침표로 끝내고 감탄사·의성어를 쓰지 않는다.\n- 속마음은 건조하게 사실만 적되 마지막 한 마디에만 감정이 배어나게 한다.\n- 알림 칸은 사건이 있을 때만 바꾸고, 없으면 "새 알림 없음."으로 둔다.`},
+  widget:{s:`[위젯 규칙] 각 항목은 앱 알림처럼 짧은 구어체(15자 내외). 잠금화면 시각·날짜는 극중 시간과 일치. 링 게이지는 stroke-dashoffset을 100.5×(1−애정도/100)으로 갱신.`,
+    d:`- 새 메시지 개수는 극중 실제 미확인 메시지 수와 일치시킨다.\n- 문구는 끊어 쓴다. (예: "답장 기다리는 중 · 3분째")`},
+  ledger:{s:`[레저 규칙] 문체는 일기체 반말 서술. 날짜는 한글 표기 + 날씨를 매 턴 기록. 체크(✓)는 실제로 끝낸 일에만. 도장 문구는 記錄畢/未完 중 상황에 맞게.`,
+    d:`- '한 줄' 칸은 그날의 가장 사소하지만 기억에 남는 순간으로.\n- 비고(※) 줄은 내일의 다짐이나 스스로에게 남기는 메모로 매 턴 새로 쓴다.`},
+  messenger:{s:`[메신저 규칙] 속마음·상태는 상대 말풍선, PC의 실제 대사 인용은 강조색 말풍선(홀수 번째 항목이 자동으로 오른쪽 정렬됨). 시간·읽음 표시와 상단 온라인 상태를 극중 시간에 맞춰 갱신.`,
+    d:`- 말풍선은 3~5개 유지, 오래된 것부터 지운다.\n- 답장이 늦어지는 상황이면 "읽음"만 찍히고 답이 없는 연출을 활용한다.\n- 하단 입력창 문구는 "메시지 입력…" 그대로 둔다.`},
+  camcorder:{s:`[캠코더 규칙] 타임코드는 매 턴 앞으로만 증가. 표정·감정은 카메라에 보이는 것만 기록, 판단 불가면 "확인 불가 — 사유". CAM 번호·장소는 장면 전환 시 갱신.`,
+    d:`- 문체는 감시 기록처럼 무감정한 관찰체. 속마음 칸은 "(음성 감지 없음)" 등 기계적 표기를 활용 가능.\n- 배터리는 턴이 지날수록 조금씩 감소.`},
+  bridge:{s:`[브리지 규칙] 계기 셀 값은 한두 단어로 짧게, 서술은 NOTICE 줄에만. 상단 눈금 바늘 위치의 숫자와 침로류 정보를 일치시킨다.`,
+    d:`- 문체는 항해 일지체 간결체, 마지막 문장에만 여운을 남긴다.\n- 실내 장면에서는 셀 라벨은 유지한 채 내용만 상황에 맞게 바꾼다.`},
+  sentinel:{s:`[센티넬 규칙] 큰 퍼센트 숫자 = 가이딩 필요 수치. 파형은 수치 구간에 맞는 진폭으로 — 0~40 안정, 41~70 동요, 71~ 불안정. 폭주 전환 기준 도달 시 오버드라이브 템플릿으로 교체.`,
+    d:`- 링크 상태 문구는 안정/유지/불안정/단절 중 하나.\n- 알림 줄은 시스템 로그체("21:32 — 근거리 파장 감지.")로 매 턴 시각·내용 갱신.`},
+  wasteland:{s:`[웨이스트랜드 규칙] 문체는 군용 단말 로그체 — 명사형 종결, 짧은 절. 글자 유실(▓)은 매 턴 1~2곳 위치를 옮겨 배치(핵심 단어는 피할 것). 게이지는 수치/10 개수만큼 █, 나머지 ░.`,
+    d:`- 경고(⚠) 줄은 현재 장소의 환경 위험 요소로 갱신.\n- 작은따옴표 속 내부 기록은 기계 로그 사이에 새어 나온 속마음 한 줄로.\n- 깜빡이는 커서(▌)는 항상 맨 마지막 줄 끝에.`},
+  gallery:{s:`[갤러리 규칙] 매 턴 현재 장면을 은유적으로 요약한 작품 제목을 「」 안에 새로 지을 것(4~14자, 직전 턴과 같은 제목 금지). 부제는 "연도 · 재료 · 소장" 형식 유지, 재료는 분위기에 맞게 변주(혼합 재료/유화/수채/연필 등). 하단 명판은 D+일수를 "여든두 번째 밤" 식 한글 서수로. 시간·수치는 한글로 풀어 쓰고, 호감도는 ● 개수 = 값/10.`,
+    d:`- 제목은 감정을 직접 말하지 말고 사물·시간·날씨·동작으로 우회한다.\n  좋은 예: 「식어가는 커피에 관한 연구」 「우산 두 개가 있는 정물」 / 나쁜 예: 「슬픈 밤」 「행복한 저녁」\n- 각 항목은 도록 해설처럼 차분한 문어체로 통일.\n- '소장' 표기는 관계 진전에 따라 변주 가능(작가 소장 → 개인 소장 → 두 사람 소장).`}
+};
+function buildUserNote(opt){
+  const activeItems=selectedItems();
+  const noteLabels={
+    wants:`${itemEmoji("wants")} 하고 싶은 것 3가지`,
+    scribble:`${itemEmoji("scribble")} 낙서 한 줄(카오모지, 이모지 사용)`,
+    pose:`${itemEmoji("pose")} 자세: 간단한 상황과 구체적 자세, 체위`,
+    relationship:`${itemEmoji("relationship")} 관계: PC와 NPC의 현재 관계`,
+    praiseSticker:`${itemEmoji("praiseSticker")} 칭찬스티커: -1, 0, 1, 이유 기재`,
+    companyNotice:`${itemEmoji("companyNotice")} 사내전체공지`,
+    mutualPromise:`${itemEmoji("mutualPromise")} 상호약속: 최대 5개 번호 붙여 나열, 1회성 약속은 완료 시 삭제`,
+    plot:`${itemEmoji("plot")} 줄거리: 3단계로 정리 후 기호 말줄임`,
+    stream:`${itemEmoji("stream")} 의식의흐름: NPC 의식의 흐름을 기호로 간단히 3단계 요약`,
+    wantToSay:`${itemEmoji("wantToSay")} 하고싶은말: NPC가 하고 싶은 말`,
+    cantSay:`${itemEmoji("cantSay")} 하지못한말: NPC가 하지 못한 말`,
+    randomInterview:`${itemEmoji("randomInterview")} 랜덤인터뷰: Q.랜덤인터뷰: A.'C의답변'`,
+    realQuote:`${itemEmoji("realQuote")} 건네고 싶은 문장: 문학소설, 시, 노래가사, 영화명대사의 «제목»작자 - '원문'(번역), (같이전하는말)`,
+    extrasMind:`${itemEmoji("extrasMind")} 직원, 행인 등 다른 조연 속마음: [이름:속마음]`
+  };
+  const itemList=activeItems.map(id=>noteLabels[id]||itemLabel(id)).join(" / ");
+  const topItems=[
+    opt.showDate?"📆 계절.연도.월.일 | 시간 | 장소":"",
+    opt.showTag?`${opt.tagText||"해시태그 없음"}`:"",
+    opt.showAnniv?"D+N · 함께한 시간":"",
+    opt.showDivider?`${opt.divider.label} 구분선(${opt.divider.text})`:""
+  ].filter(Boolean).join(" / ")||"상단 없음";
+  const fixed=fixedItems();
+  const mod=MODULES[opt.key];
+  const bottomRule=opt.showBottomDivider?`\n- 상태창 하단에는 ${opt.bottomDivider.label} 구분선(${opt.bottomDivider.text})을 넣고, 마지막 항목과 붙지 않게 여백을 둔다.`:"";
+  const fixedRule=fixed.length?`\n- 고정 항목(${fixed.join(", ")})은 내용을 바꾸지 않고 그대로 출력한다.`:"";
+  const commonDetail=opt.noteMode==="detail"?`
+- HTML 앞뒤에 다른 텍스트를 붙이지 않는다(코드블록 기호 제외).
+- 내용이 길어져도 줄바꿈은 <br>만 사용하고 새 태그를 만들지 않는다.
+- 이전 턴의 상태창을 복사하지 말고 이번 턴 장면 기준으로 모든 항목을 다시 판단한다.
+- 상태창 시점은 NPC 기준. PC가 알 수 없는 정보도 상태창에는 정직하게 기록한다.`:"";
+  const terminalRules=activeItems.includes("notice")?`
+- 🔔 알림: NPC 단말기 알림. 대화 흐름을 방해하지 않는 선에서 세계관 디테일이나 사소한 유머를 출력.
+  · 생활: 택배도착, 날씨, 일정 등 / 정보: 임무알림, 수치체크, 바이오리듬 경고 등 / 유머: 문자, 익명게시판 인기글, 스팸, 운세 등`:"";
+  const glitchRules=opt.allowGlitch?`
+- 가이딩 필요 또는 폭주 임계가 ${opt.dangerAt} 이상이면 이 테마 대신 오버드라이브(경고) 상태창을 출력한다.
+- 오버드라이브 규칙: 검붉은 카드 + 상단 해저드 스트라이프 + RUNAWAY 알림 블록, 수치는 위기 범위(심박 120~160 등), 속마음은 짧고 파편적으로, 일부 단어 기호화(기억→기▓). 조건 해제 시 원래 테마로 복귀(수치는 단계적으로 낮춘다).`:"";
+  return `[상태창 출력 규칙]
+- 매 응답 끝에 상태창 HTML을 새로 생성한다. 구조와 style은 유지하고 텍스트 내용만 장면에 맞게 갱신한다.
+- 상태창은 반드시 마크다운 코드블록(\`\`\`html) 안에 출력한다.
+- CSS 블록은 쓰지 말고 inline style만 사용한다.
+- 형식: ${opt.o==="h"?"가로형(항목이 2열로 흐르는 와이드 카드)":"세로형"} · 폭 ${opt.width}px 기준. 항목을 임의로 추가·삭제하지 않는다.${fixedRule}
+- 상단 형식: ${topItems}.${bottomRule}
+- 포함 항목과 순서: ${itemList}.
+- 수치는 0~100, 턴당 변동 ±5 이내로 완만하게(큰 사건 시 예외). 가이딩/폭주/애정도는 + N% 형식.
+- D-day는 기준일을 먼저 정하고 그 기준일로부터 D+N을 계산한다. 기준일이 없다면 D+0.
+- 기념일 D+1, D+30, D+50, D+100, D+365에는 색과 굵기만 강조한다.${commonDetail}
+${mod.s}${opt.noteMode==="detail"?`\n${mod.d}`:""}${glitchRules}${terminalRules}`;
+}
+
+/* ── 렌더 ────────────────────────────────────────────── */
+function lengthLevel(n){return n<=2000?["2000자 이하 권장",""]:n<=3200?["조금 긴 편 — 항목을 줄여보세요","warn"]:["너무 깁니다 — 출력 안정성이 떨어질 수 있어요","warn"]}
+function render(){
+  const opt=options();
+  // 방향 세그 상태
+  const hBtn=document.querySelector('#orientSeg [data-orient="h"]');
+  hBtn.disabled=!opt.theme.hOK;
+  hBtn.style.opacity=opt.theme.hOK?1:.35;
+  document.querySelectorAll("#orientSeg button").forEach(b=>b.classList.toggle("on",b.dataset.orient===opt.o));
+  // 카드
+  let html=buildCard(opt);
+  $("preview").innerHTML=html;
+  if(opt.compress) html=html.replace(/\n\s*/g,"");
+  const note=buildUserNote(opt);
+  const wrapped="```html\n"+html+"\n```";
+  const value=activeTab==="html"?wrapped:activeTab==="note"?note:`${wrapped}\n\n${note}`;
+  $("output").value=value;
+  $("htmlCount").textContent=`HTML ${html.length.toLocaleString()}자`;
+  const [msg,cls]=lengthLevel(html.length);
+  $("countHint").textContent=msg;
+  $("countHint").className=cls;
+}
+
+/* ── 아이템 UI ───────────────────────────────────────── */
+function renderItems(){
+  $("newItem").innerHTML=itemDefs.map(it=>{
+    const added=items.some(e=>e.id===it.id);
+    return `<option value="${it.id}" ${added?"disabled":""}>${it.emoji} ${it.name}${added?" · 추가됨":""}</option>`;
+  }).join("");
+  const first=itemDefs.find(it=>!items.some(e=>e.id===it.id));
+  $("newItem").value=first?.id||"";
+  $("newEmoji").value=first?.emoji||"➕";
+  $("itemList").innerHTML=items.map(entry=>{
+    const def=itemDef(entry.id), label=def?def.name:entry.id;
+    return `<div class="item" data-id="${entry.id}">
+      <input class="emoji-input" id="emoji-${entry.id}" value="${escapeHtml(entry.emoji)}" maxlength="6" aria-label="${label} 이모지">
+      <select id="use-${entry.id}" aria-label="${label} 표시 여부">
+        <option value="on" ${entry.enabled?"selected":""}>표시</option>
+        <option value="off" ${entry.enabled?"":"selected"}>숨김</option>
+      </select>
+      <label class="item-name" for="use-${entry.id}">${label}</label>
+      <button class="mini pin ${entry.fixed?"on":""}" type="button" data-pin="${entry.id}" title="고정">📌</button>
+      <button class="mini" type="button" data-move="up" data-id="${entry.id}">↑</button>
+      <button class="mini" type="button" data-move="down" data-id="${entry.id}">↓</button>
+      <button class="mini" type="button" data-remove="${entry.id}">×</button>
+    </div>`;
+  }).join("");
+}
+function moveItem(id,dir){
+  const i=items.findIndex(e=>e.id===id);
+  const j=dir==="up"?i-1:i+1;
+  if(i<0||j<0||j>=items.length)return;
+  [items[i],items[j]]=[items[j],items[i]];
+  renderItems();render();
+}
+function addItem(){
+  const id=$("newItem").value;
+  if(!id||items.some(e=>e.id===id))return;
+  items.push({id,emoji:$("newEmoji").value||itemDef(id).emoji,enabled:true,fixed:false});
+  renderItems();render();
+}
+
+/* ── 테마/배색 ───────────────────────────────────────── */
+function applyColors(C){
+  [["bg","bgText","bgColor"],["text","textText","textColor"],["accent","accentText","accentColor"],["line","lineText","lineColor"]]
+    .forEach(([k,t,c])=>{$(t).value=C[k];$(c).value=C[k]});
+}
+function renderSwatches(){
+  const base=THEMES[$("theme").value];
+  $("swatches").innerHTML=base.presets.map((p,i)=>
+    `<button class="swatch" type="button" data-preset="${i}"><i style="background:linear-gradient(90deg,${p[1]} 50%,${p[3]} 50%)"></i>${p[0]}</button>`).join("");
+}
+function setTheme(key){
+  const base=THEMES[key];
+  customColors=null;
+  applyColors(base.colors);
+  if(!base.hOK) orient="v";
+  $("width").value=orient==="h"?640:420;
+  renderSwatches();render();
+}
+function resetPreset(){
+  $("width").value=orient==="h"?640:420;$("fontSize").value=13;$("gap").value=9;$("barHeight").value=4;$("radius").value=0;$("topGap").value=14;
+  setTheme($("theme").value);
+}
+
+/* ── 설정 내보내기/가져오기 ─────────────────────────── */
+const FIELD_IDS=["theme","width","fontSize","gap","barHeight","radius","topGap","showDate","showTag","showAnniv","showDivider","dividerStyle","showBottomDivider","bottomDividerStyle","tagText","dateLine","dayCount","guideValue","runawayValue","affection","dangerAt","allowGlitch","forceGlitch","noteMode","bgText","textText","accentText","lineText"];
+function exportSettings(){
+  const data={v:2,orient,items,fields:{}};
+  FIELD_IDS.forEach(id=>data.fields[id]=$(id).value);
+  data.fields.sampleMode=$("sampleMode").checked;
+  data.fields.compress=$("compress").checked;
+  const code=btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  navigator.clipboard?.writeText(code).then(()=>flash("설정 코드를 복사했어요"),()=>prompt("이 코드를 복사하세요:",code));
+}
+function importSettings(){
+  const code=prompt("설정 코드를 붙여넣으세요:");
+  if(!code)return;
+  try{
+    const data=JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
+    orient=data.orient||"v";
+    items=(data.items||items).map(e=>({fixed:false,...e}));
+    Object.entries(data.fields||{}).forEach(([id,v])=>{
+      if(id==="sampleMode"||id==="compress"){$(id).checked=!!v;return}
+      if($(id))$(id).value=v;
+    });
+    ["bg","text","accent","line"].forEach(k=>{const el=$(k+"Color");if(el&&$(k+"Text").value)el.value=$(k+"Text").value});
+    customColors={bg:$("bgText").value,text:$("textText").value,accent:$("accentText").value,line:$("lineText").value};
+    renderSwatches();renderItems();render();
+    flash("설정을 불러왔어요");
+  }catch(e){flash("코드를 읽지 못했어요 — 다시 확인해주세요")}
+}
+function flash(msg){
+  $("copyState").textContent=msg;
+  setTimeout(()=>$("copyState").textContent="마크다운 코드블록과 유저노트 명령어",2200);
+}
+
+/* ── 이벤트 ─────────────────────────────────────────── */
+async function copyText(t,label){
+  try{await navigator.clipboard.writeText(t);flash(label+" 복사 완료")}catch(e){$("output").select();document.execCommand("copy");flash(label+" 복사 완료")}
+}
+document.addEventListener("input",(ev)=>{
+  const id=ev.target.id||"";
+  if(id.startsWith("emoji-")){const it=items.find(e=>"emoji-"+e.id===id);if(it)it.emoji=ev.target.value;render();return}
+  if(id.startsWith("use-")){const it=items.find(e=>"use-"+e.id===id);if(it)it.enabled=ev.target.value==="on";render();return}
+  const pair={bgColor:"bgText",textColor:"textText",accentColor:"accentText",lineColor:"lineText",bgText:"bgColor",textText:"textColor",accentText:"accentColor",lineText:"lineColor"}[id];
+  if(pair){if(/Color$/.test(id))$(pair).value=ev.target.value;else if(/^#[0-9a-fA-F]{3,6}$/.test(ev.target.value))$(pair).value=ev.target.value;
+    customColors={bg:$("bgText").value,text:$("textText").value,accent:$("accentText").value,line:$("lineText").value};}
+  render();
+});
+document.addEventListener("click",(ev)=>{
+  const t=ev.target.closest("button");if(!t)return;
+  if(t.dataset.move){moveItem(t.dataset.id,t.dataset.move);return}
+  if(t.dataset.remove){items=items.filter(e=>e.id!==t.dataset.remove);renderItems();render();return}
+  if(t.dataset.pin){const it=items.find(e=>e.id===t.dataset.pin);if(it){it.fixed=!it.fixed;renderItems();render()}return}
+  if(t.dataset.preset!==undefined&&t.classList.contains("swatch")){
+    const p=THEMES[$("theme").value].presets[+t.dataset.preset];
+    customColors={bg:p[1],text:p[2],accent:p[3],line:p[4]};
+    applyColors(customColors);render();return
+  }
+  if(t.dataset.orient){if(t.disabled)return;orient=t.dataset.orient;$("width").value=orient==="h"?640:420;render();return}
+  if(t.dataset.bg){document.querySelectorAll("#bgSeg button").forEach(b=>b.classList.toggle("on",b===t));$("previewStage").className="preview-stage bg-"+t.dataset.bg;return}
+  if(t.classList.contains("tab")){document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b===t));activeTab=t.dataset.tab;render();return}
+});
+$("theme").addEventListener("change",()=>setTheme($("theme").value));
+$("resetPreset").addEventListener("click",resetPreset);
+$("resetOrder").addEventListener("click",()=>{items=defaultItems.map(id=>{const d=itemDef(id);return{id,emoji:d.emoji,enabled:true,fixed:false}});renderItems();render()});
+$("addItem").addEventListener("click",addItem);
+$("exportBtn").addEventListener("click",exportSettings);
+$("importBtn").addEventListener("click",importSettings);
+$("copyHtmlTop").addEventListener("click",()=>{const opt=options();let h=buildCard(opt);if(opt.compress)h=h.replace(/\n\s*/g,"");copyText("```html\n"+h+"\n```","HTML")});
+$("copyOutput").addEventListener("click",()=>copyText($("output").value,activeTab==="html"?"HTML":activeTab==="note"?"유저노트":"전체"));
+
+/* ── 시작 ────────────────────────────────────────────── */
+renderItems();
+setTheme("lumen");
+</script>
+</body>
+</html>
